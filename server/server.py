@@ -5,11 +5,13 @@ import socket, threading, time, re, hashlib, base64
 magicguid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 port = 9999
 
+
 def printHeaders(headers):
     print "Headers received from WebSocket client"
     for key in headers.keys():
         print key, headers[key]
     print
+
 
 def doHandShake(conn, dataheaders):
     headers = dict(re.findall(r"(?P<name>.*?): (?P<value>.*?)\r\n", dataheaders))
@@ -30,6 +32,7 @@ def doHandShake(conn, dataheaders):
     print handshake
     conn.send(handshake)
 
+
 def handle(conn):
     time.sleep(1)
     conn.send('\x81\x0BHello World')
@@ -37,6 +40,7 @@ def handle(conn):
     conn.send('\x81\x12How are you there?')
     time.sleep(1)
     conn.close()
+
 
 s = socket.socket()
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -49,7 +53,7 @@ while 1:
         dataheaders = conn.recv(4096)
         doHandShake(conn, dataheaders)
         print "WebSocket open"
-        threading.Thread(target = handle, args = (conn,)).start()
+        threading.Thread(target=handle, args=(conn,)).start()
     except KeyboardInterrupt:
         print
         print "Closing now"
