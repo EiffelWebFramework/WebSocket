@@ -42,10 +42,10 @@ s = socket.socket()
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind(('127.0.0.1', port))
 print "Server listening on port", port
-s.listen(1);
+s.listen(1)
 while 1:
     try:
-        conn, address = s.accept();
+        conn, address = s.accept()
         dataheaders = conn.recv(4096)
         doHandShake(conn, dataheaders)
         print "WebSocket open"
