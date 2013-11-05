@@ -183,6 +183,7 @@ feature -- WebSockets
 			l_frame: STRING
 			l_rsv: BOOLEAN
 			l_fin: BOOLEAN
+			l_remaining: BOOLEAN
 		do
 			create Result.make_empty
 			from
@@ -246,21 +247,29 @@ feature -- WebSockets
 					if l_encoded then
 						a_socket.read_stream (4)
 						l_key := a_socket.last_string
-						a_socket.read_stream (l_len)
-						l_frame := a_socket.last_string
 						from
-							i := 1
 						until
-							i > l_frame.count
+							l_remaining
 						loop
-							l_frame [i] := (l_frame [i].code.to_integer_8.bit_xor (l_key [((i - 1) \\ 4) + 1].code.to_integer_8)).to_character_8
-							i := i + 1
+							a_socket.read_stream (1024*16) -- Reading 16 KB
+							l_frame := a_socket.last_string
+
+							from
+								i := 1
+							until
+								i > l_frame.count
+							loop
+								l_frame [i] := (l_frame [i].code.to_integer_8.bit_xor (l_key [((i - 1) \\ 4) + 1].code.to_integer_8)).to_character_8
+								i := i + 1
+							end
+							if l_opcode = 1 then
+								Result.append (l_utf.string_32_to_utf_8_string_8 (l_frame))
+							else
+								Result.append (l_frame)
+							end
+							l_remaining := l_len = Result.count
 						end
-						if l_opcode = 1 then
-							Result.append (l_utf.string_32_to_utf_8_string_8 (l_frame))
-						else
-							Result.append (l_frame)
-						end
+
 						log ("Received <===============")
 						log (Result)
 					end

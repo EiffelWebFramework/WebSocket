@@ -32,8 +32,13 @@ feature -- Web Socket Interface
 
 			if a_message.count > 65535 then
 				l_message.append_code (127)
-				l_message.append_code ((a_message.count |>> 16).as_natural_32)
-				l_message.append_code ((a_message.count |>> 8).as_natural_32)
+				l_message.append_code (0)
+				l_message.append_code (0)
+				l_message.append_code (0)
+				l_message.append_code (0)
+				l_message.append_code (0)
+				l_message.append_code ((a_message.count |>> 16).to_character_8.code.as_natural_32)
+				l_message.append_code ((a_message.count |>> 8).to_character_8.code.as_natural_32)
 				l_message.append_code (a_message.count.to_character_8.code.as_natural_32)
 			elseif a_message.count > 125  then
 				l_message.append_code (126)
