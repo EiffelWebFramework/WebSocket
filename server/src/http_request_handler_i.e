@@ -44,6 +44,9 @@ feature {NONE} -- Initialization
 			create request_header_map.make (10)
 			is_handshake := False
 			is_data_frame_ok := True
+			close_description := [Normal_closure, "Normal close"]
+			is_close := False
+			is_incomplete_data := False
 		end
 
 feature -- Access
@@ -58,8 +61,12 @@ feature -- Access
 	request_header_map: HASH_TABLE [STRING, STRING]
 			-- Contains key:value of the header
 
+	is_close: BOOLEAN
+
 	has_error: BOOLEAN
 			-- Error occurred during `analyze_request_message'
+
+	close_description: TUPLE [code:INTEGER; description: STRING]
 
 	method: STRING
 			-- http verb
@@ -77,11 +84,14 @@ feature -- Access
 	is_handshake: BOOLEAN
 			-- Is the handshake already done?
 
+	is_incomplete_data: BOOLEAN
+
 	is_data_frame_ok: BOOLEAN
 			-- Is the last process data framing ok?
 
 	is_binary: BOOLEAN
 			-- Is the type of the message binary?
+
 
 feature -- Change
 
@@ -135,9 +145,9 @@ feature -- Execution
 						else
 							if l_socket.ready_for_reading then
 								l_client_message := read_data_framing (l_socket)
-								if is_data_frame_ok then
+								if is_data_frame_ok and then not is_close and then not is_incomplete_data then 
 									on_message (l_socket, l_client_message,is_binary)
-								else
+								else 
 									exit := True
 								end
 							end
@@ -173,6 +183,7 @@ feature -- WebSockets
 			--		has_error
 		note
 			EIS: "name=Data Frame", "src=http://tools.ietf.org/html/rfc6455#section-5", "protocol=uri"
+			EIS: "name=Masking","src=http://tools.ietf.org/html/rfc6455#section-5.3", "protocol=uri"
 		local
 			l_opcode: INTEGER
 			l_len: INTEGER
@@ -188,11 +199,13 @@ feature -- WebSockets
 			create Result.make_empty
 			from
 			until
-				l_fin or not is_data_frame_ok
+				l_fin or not is_data_frame_ok or is_incomplete_data
 			loop
 					-- multi-frames or continue is only valid for Binary or Text
 				a_socket.read_stream (1)
+				is_incomplete_data := a_socket.last_string.is_empty
 				l_opcode := a_socket.last_string.at (1).code
+
 				debug
 					print (to_byte (l_opcode).out)
 				end
@@ -200,20 +213,26 @@ feature -- WebSockets
 				l_rsv := l_opcode & (0b01110000) = 0
 				l_opcode := l_opcode & 0xF
 				log ("Standard Action:" + l_opcode.out)
-
+				is_binary := l_opcode = 2
+				is_close := l_opcode = 8
+				if not ( l_opcode = 0 or else l_opcode = 1 or else l_opcode = 2 or else l_opcode = 8 or else l_opcode = 9 or else l_opcode = 10) then
+					is_data_frame_ok := False
+					close_description := [Protocol_error, "Unkown opcode"]
+				end
 					-- fin validation
-				if not l_fin then
+				if not l_fin and then is_data_frame_ok then
 						-- Control frames (see Section 5.5) MAY be injected in the middle of
 						--a fragmented message.  Control frames themselves MUST NOT be fragmented.
 						-- if the l_opcode is a control frame then there is an error!!!
 						-- PING, PONG, CLOSE
 					if l_opcode = 8 or else l_opcode = 9 or l_opcode = 10 then
 						is_data_frame_ok := False
+						close_description := [protocol_error, "Control frames themselves MUST NOT be fragmented."]
 					end
 				end
 
 					-- rsv validation
-				if not l_rsv then
+				if not l_rsv and then is_data_frame_ok then
 					is_data_frame_ok := False
 						-- RSV1, RSV2, RSV3:  1 bit each
 
@@ -222,14 +241,15 @@ feature -- WebSockets
 						-- the negotiated extensions defines the meaning of such a nonzero
 						-- value, the receiving endpoint MUST _Fail the WebSocket
 						-- Connection_
+						is_data_frame_ok := False
+						close_description := [protocol_error, "RSV values MUST be 0 unless an extension is negotiated that defines meanings for non-zero values"]
 				end
-
-				is_binary := l_opcode = 2
 
 					-- At the moment only TEXT, (pending Binary)
 				if (l_opcode = 1  or l_opcode = 2) and then is_data_frame_ok then -- TEXT
 					a_socket.read_stream (1)
 					l_len := a_socket.last_string.at (1).code
+					is_incomplete_data := l_len < 2
 					debug
 						print (to_byte (l_len).out)
 					end
@@ -251,32 +271,26 @@ feature -- WebSockets
 						until
 							l_remaining
 						loop
-							a_socket.read_stream (1024*16) -- Reading 16 KB
-							l_frame := a_socket.last_string
-
-							from
-								i := 1
-							until
-								i > l_frame.count
-							loop
-								l_frame [i] := (l_frame [i].code.to_integer_8.bit_xor (l_key [((i - 1) \\ 4) + 1].code.to_integer_8)).to_character_8
-								i := i + 1
+							if a_socket.ready_for_reading then
+								a_socket.read_stream (1024) -- ReadING 255
+								l_frame := a_socket.last_string
+									--  Masking
+									--  http://tools.ietf.org/html/rfc6455#section-5.3
+	
+								l_frame := unmmask (l_frame, l_key)
+								if l_opcode = 1 then
+									Result.append (l_utf.string_32_to_utf_8_string_8 (l_frame))
+								else
+									Result.append (l_frame)
+								end
+								l_remaining := l_len = Result.count
 							end
-							if l_opcode = 1 then
-								Result.append (l_utf.string_32_to_utf_8_string_8 (l_frame))
-							else
-								Result.append (l_frame)
-							end
-							l_remaining := l_len = Result.count
 						end
 
 						log ("Received <===============")
 						log (Result)
 					end
-				else
-					is_data_frame_ok := False
 				end
-
 			end
 		end
 
@@ -295,13 +309,10 @@ feature -- WebSockets
 			--    Origin: http://example.com
 			--    Sec-WebSocket-Protocol: chat, superchat
 			--    Sec-WebSocket-Version: 13
-		note
-			EIS: "name=Server Side Requirements", "src=http://tools.ietf.org/html/rfc6455#section-4.2", "protocol=uri"
-			EIS: "name=Reading the Client's Opening Handshake", "src=http://tools.ietf.org/html/rfc6455#section-4.2.1", "protocol=uri"
-			EIS: "name=Sending the Server's Opening Handshake", "src=http://tools.ietf.org/html/rfc6455#section-4.2.2", "protocol=uri"
 		local
 			l_sha1: SHA1
-			l_key, l_handshake: STRING
+			l_key : STRING
+			l_handshake: STRING
 		do
 			analyze_request_message (a_socket)
 				-- Reading client's opening GT
@@ -458,6 +469,43 @@ feature -- Parsing
 			end
 		end
 	
+feature -- Masking Data Client - Server
+
+	unmmask (a_frame: READABLE_STRING_8; a_key: READABLE_STRING_8): STRING
+			--	 To convert masked data into unmasked data, or vice versa, the following
+			--   algorithm is applied.  The same algorithm applies regardless of the
+			--   direction of the translation, e.g., the same steps are applied to
+			--   mask the data as to unmask the data.
+
+			--   Octet i of the transformed data ("transformed-octet-i") is the XOR of
+			--   octet i of the original data ("original-octet-i") with octet at index
+			--   i modulo 4 of the masking key ("masking-key-octet-j"):
+
+			--     j                   = i MOD 4
+			--     transformed-octet-i = original-octet-i XOR masking-key-octet-j
+
+			--   The payload length, indicated in the framing as frame-payload-length,
+			--   does NOT include the length of the masking key.  It is the length of
+			--   the "Payload data", e.g., the number of bytes following the masking
+			--   key.
+		note
+			EIS: "name=Masking","src=S", "protocol=uri"
+		local
+			l_frame: STRING
+			i: INTEGER
+		do
+			l_frame := a_frame.twin
+			from
+				i := 1
+			until
+				i > l_frame.count
+			loop
+				l_frame [i] := (l_frame [i].code.to_integer_8.bit_xor (a_key [((i - 1) \\ 4) + 1].code.to_integer_8)).to_character_8
+				i := i + 1
+			end
+			Result := l_frame
+		end
+
 feature -- Output
 
 	logger: detachable separate HTTP_SERVER_LOGGER

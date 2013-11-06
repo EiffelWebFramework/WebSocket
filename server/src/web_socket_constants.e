@@ -11,7 +11,7 @@ feature -- Constants
 
 	HTTP_1_1: STRING = "HTTP/1.1 101 WebSocket Protocol Handshake"
 
-	Upgrade_ws: STRING = "Upgrade: WebSocket"
+	Upgrade_ws: STRING = "Upgrade: websocket"
 
 	Connection_ws: STRING = "Connection: Upgrade"
 
@@ -126,5 +126,53 @@ feature -- Close code numbers
 		--    -+------------+-----------------+---------------+-----------|
 		--     | 1015       | TLS handshake   | hybi@ietf.org | RFC 6455  |
 		--    -+------------+-----------------+---------------+-----------|
+
+	Normal_closure: INTEGER = 1000
+			-- Indicates a normal closure, meaning that the purpose for
+      		-- which the connection was established has been fulfilled.
+
+	Going_away: INTEGER = 1001
+			-- Indicates that an endpoint is "going away", such as a server
+      		-- going down or a browser having navigated away from a page.
+
+	Protocol_error: INTEGER = 1002
+			-- Indicates that an endpoint is terminating the connection due
+      		-- to a protocol error.
+
+    Unsupported_data: INTEGER = 1003
+    		-- Indicates that an endpoint is terminating the connection
+      		-- because it has received a type of data it cannot accept (e.g., an
+      		-- endpoint that understands only text data MAY send this if it
+      		-- receives a binary message).
+
+    Invalid_data: INTEGER = 1007
+    		-- Indicates that an endpoint is terminating the connection
+      		-- because it has received data within a message that was not
+      		-- consistent with the type of the message (e.g., non-UTF-8 [RFC3629]
+      		-- data within a text message).
+
+	Policy_violation: INTEGER = 1008
+			-- Indicates that an endpoint is terminating the connection
+      		-- because it has received a message that violates its policy.  This
+      		-- is a generic status code that can be returned when there is no
+      		-- other more suitable status code (e.g., 1003 or 1009) or if there
+      		-- is a need to hide specific details about the policy.
+
+    Message_too_large: INTEGER = 1009
+    		-- Indicates that an endpoint is terminating the connection
+      		-- because it has received a message that is too big for it to
+      		-- process.
+
+    Extension_required: INTEGER = 1010
+    		-- Indicates that an endpoint (client) is terminating the
+      		-- connection because it has expected the server to negotiate one or
+      		-- more extension, but the server didn't return them in the response
+      		-- message of the WebSocket handshake.
+
+	Internal_error: INTEGER = 1011
+			-- Indicates that a server is terminating the connection because
+ 		    -- it encountered an unexpected condition that prevented it from
+      		-- fulfilling the request.
+
 
 end
