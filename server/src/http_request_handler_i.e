@@ -92,6 +92,8 @@ feature -- Access
 	is_binary: BOOLEAN
 			-- Is the type of the message binary?
 
+	opcode : INTEGER
+		-- opcode of the message
 
 feature -- Change
 
@@ -145,9 +147,9 @@ feature -- Execution
 						else
 							if l_socket.ready_for_reading then
 								l_client_message := read_data_framing (l_socket)
-								if is_data_frame_ok and then not is_close and then not is_incomplete_data then 
-									on_message (l_socket, l_client_message,is_binary)
-								else 
+								if is_data_frame_ok and then not is_close and then not is_incomplete_data then
+									on_message (l_socket, l_client_message,opcode)
+								else
 									exit := True
 								end
 							end
@@ -195,6 +197,7 @@ feature -- WebSockets
 			l_rsv: BOOLEAN
 			l_fin: BOOLEAN
 			l_remaining: BOOLEAN
+			l_chunk_size: INTEGER
 		do
 			create Result.make_empty
 			from
@@ -212,6 +215,7 @@ feature -- WebSockets
 				l_fin := l_opcode & (0b10000000) /= 0
 				l_rsv := l_opcode & (0b01110000) = 0
 				l_opcode := l_opcode & 0xF
+				opcode := l_opcode
 				log ("Standard Action:" + l_opcode.out)
 				is_binary := l_opcode = 2
 				is_close := l_opcode = 8
@@ -246,10 +250,12 @@ feature -- WebSockets
 				end
 
 					-- At the moment only TEXT, (pending Binary)
-				if (l_opcode = 1  or l_opcode = 2) and then is_data_frame_ok then -- TEXT
+				if (l_opcode = 1  or l_opcode = 2 or l_opcode = 0) and then is_data_frame_ok then -- Binary, Text
+					l_chunk_size := 1024
 					a_socket.read_stream (1)
 					l_len := a_socket.last_string.at (1).code
 					is_incomplete_data := l_len < 2
+
 					debug
 						print (to_byte (l_len).out)
 					end
@@ -264,6 +270,11 @@ feature -- WebSockets
 						a_socket.read_stream (2)
 						l_len := (a_socket.last_string[1].code |<< 8).bit_or(a_socket.last_string[2].code)
 					end
+
+					if l_len < 1024 then
+						l_chunk_size := l_len
+					end
+
 					if l_encoded then
 						a_socket.read_stream (4)
 						l_key := a_socket.last_string
@@ -272,23 +283,25 @@ feature -- WebSockets
 							l_remaining
 						loop
 							if a_socket.ready_for_reading then
-								a_socket.read_stream (1024) -- ReadING 255
+								a_socket.read_stream (l_chunk_size) 
 								l_frame := a_socket.last_string
 									--  Masking
 									--  http://tools.ietf.org/html/rfc6455#section-5.3
-	
+
 								l_frame := unmmask (l_frame, l_key)
 								if l_opcode = 1 then
 									Result.append (l_utf.string_32_to_utf_8_string_8 (l_frame))
 								else
 									Result.append (l_frame)
 								end
-								l_remaining := l_len = Result.count
+								l_remaining := l_len <= Result.count
 							end
 						end
 
-						log ("Received <===============")
-						log (Result)
+						debug
+							log ("Received <===============")
+							log (Result)
+						end
 					end
 				end
 			end
@@ -468,7 +481,7 @@ feature -- Parsing
 				index := index + 1
 			end
 		end
-	
+
 feature -- Masking Data Client - Server
 
 	unmmask (a_frame: READABLE_STRING_8; a_key: READABLE_STRING_8): STRING
@@ -530,7 +543,7 @@ feature -- Output
 		end
 
 feature {NONE} -- Debug		
-	
+
 	to_byte (a_integer: INTEGER): ARRAY [INTEGER]
 		require
 			valid: a_integer >= 0 and then a_integer <= 255

@@ -12,7 +12,6 @@ deferred class
 inherit
 	HTTP_REQUEST_HANDLER_I
 		redefine
---			set_client_socket,			
 			release,
 			reset
 		end
