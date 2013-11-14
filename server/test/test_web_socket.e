@@ -83,6 +83,33 @@ feature -- Test Reading the Client's Opening Handshake
 		end
 
 
+	test_web_socket_echo
+			-- Valid handshake
+		note
+			EIS: "Reading the Client's Opening Handshake", "src=http://tools.ietf.org/html/rfc6455#section-4.2.1", "protocol=uri"
+		local
+			msg: STRING
+			l_int: INTEGER
+			l_addres: INET_ADDRESS
+		do
+			create ws_conn.make_client_by_port (80, "www.websocket.org")
+				-- Connect to the Server
+			ws_conn.connect
+			assert ("Connected", ws_conn.is_connected)
+			client_handshake_ok.append (crlf)
+			client_handshake_ok.append (crlf)
+			send_message (client_handshake_ok)
+			ws_conn.read_stream (1024 * 16)
+			assert ("Data Received", ws_conn.last_string /= Void)
+			assert ("Data Received", ws_conn.last_string.has_substring ("HTTP/1.1 101 Switching Protocols"))
+			l_int := 8
+			send_message (l_int.out)
+			ws_conn.read_stream (1024 * 16)
+			assert ("Data Received", ws_conn.last_string /= Void)
+			ws_conn.close
+		end
+
+
 	test_web_socket_multi_frame
 			-- Multiframe
 		note
@@ -105,15 +132,15 @@ feature -- Test Reading the Client's Opening Handshake
 			assert ("Data Received", ws_conn.last_string.has_substring ("HTTP/1.1 101 Switching Protocols"))
 			l_frame1 := "Multi-frame message, first frame"
 			create msg.make_empty
-			msg.append_code (0)
-			msg.append_code ((l_frame1.count.as_natural_32 + 128))
+			msg.append_code (128)
+			msg.append_code ((l_frame1.count.as_natural_32 ))
 			msg.append ("1234")
 			msg.append (masked ("1234",l_frame1))
 			send_message (msg)
 			l_frame2 := "End frame"
 			create msg.make_empty
 			msg.append_code (129)
-			msg.append_code ((l_frame2.count.as_natural_32 + 128))
+			msg.append_code ((l_frame2.count.as_natural_32 ))
 			msg.append ("1243")
 			msg.append (masked ("1243",l_frame2))
 			send_message (msg)

@@ -150,6 +150,7 @@ feature -- Execution
 								if is_data_frame_ok and then not is_close and then not is_incomplete_data then
 									on_message (l_socket, l_client_message,opcode)
 								else
+									on_message (l_socket, l_client_message, opcode)
 									exit := True
 								end
 							end
@@ -283,7 +284,7 @@ feature -- WebSockets
 							l_remaining
 						loop
 							if a_socket.ready_for_reading then
-								a_socket.read_stream (l_chunk_size) 
+								a_socket.read_stream (l_chunk_size)
 								l_frame := a_socket.last_string
 									--  Masking
 									--  http://tools.ietf.org/html/rfc6455#section-5.3

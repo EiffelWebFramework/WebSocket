@@ -1,0 +1,398 @@
+
+ws_client: system execution failed.
+Following is the set of recorded exceptions:
+
+-------------------------------------------------------------------------------
+Class / Object      Routine                Nature of exception           Effect
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_send                 Net error #10053:            
+<0000000002960948>  (From SOCKET)          Runtime I/O error.            Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_send                                              
+<0000000002960948>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   send @7                                             
+<0000000002960948>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   send_message @4                                     
+<0000000002960948>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   do_send @20                                         
+<00000000029605E8>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   send @4                                             
+<00000000029605E8>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   on_text_message @1                                  
+<00000000029605E8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   command @1                                          
+<00000000029605E8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   execute @10                                         
+<00000000029605E8>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+APPLICATION         make @2                                             
+<00000000029605A8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+APPLICATION         root's creation                                     
+<00000000029605A8>                         Routine failure.              Exit
+-------------------------------------------------------------------------------
+
+ws_client: system execution failed.
+Following is the set of recorded exceptions:
+
+-------------------------------------------------------------------------------
+Class / Object      Routine                Nature of exception           Effect
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_send                 Net error #10053:            
+<0000000002880948>  (From SOCKET)          Runtime I/O error.            Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_send                                              
+<0000000002880948>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   send @7                                             
+<0000000002880948>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   send_message @4                                     
+<0000000002880948>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   do_send @20                                         
+<00000000028805E8>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   send @4                                             
+<00000000028805E8>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   on_text_message @1                                  
+<00000000028805E8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   command @1                                          
+<00000000028805E8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   execute @10                                         
+<00000000028805E8>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+APPLICATION         make @2                                             
+<00000000028805A8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+APPLICATION         root's creation                                     
+<00000000028805A8>                         Routine failure.              Exit
+-------------------------------------------------------------------------------
+
+ws_client: system execution failed.
+Following is the set of recorded exceptions:
+
+******************************** Thread exception *****************************
+In thread           Root thread            0x0 (thread id)
+*******************************************************************************
+-------------------------------------------------------------------------------
+Class / Object      Routine                Nature of exception           Effect
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_send                 ???	:                        
+<0000000002A40998>  (From SOCKET)          Runtime I/O error.            Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_send                                              
+<0000000002A40998>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   send @7                                             
+<0000000002A40998>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   send_message @4                                     
+<0000000002A40998>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   do_send @20                                         
+<0000000002A40608>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   send @4                                             
+<0000000002A40608>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   on_text_message @1                                  
+<0000000002A40608>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+APPLICATION         make @7                                             
+<0000000002A405A8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+APPLICATION         root's creation                                     
+<0000000002A405A8>                         Routine failure.              Exit
+-------------------------------------------------------------------------------
+
+ws_client: system execution failed.
+Following is the set of recorded exceptions:
+
+******************************** Thread exception *****************************
+In thread           Child thread           0x148 (thread id)
+*******************************************************************************
+-------------------------------------------------------------------------------
+Class / Object      Routine                Nature of exception           Effect
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_read_stream          Net error #10053:            
+<0000000002A40998>  (From SOCKET)          Runtime I/O error.            Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_read_stream                                       
+<0000000002A40998>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   read_stream @3                                      
+<0000000002A40998>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+WEB_SOCKET_IMPL     read_data_framing @3                                
+<0000000002A42798>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+WEB_SOCKET_IMPL     receive @2                                          
+<0000000002A42798>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   receive @1                                          
+<0000000002A40608>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   execute @10                                         
+<0000000002A40608>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   thr_main @3                                         
+<0000000002A40608>  (From THREAD)          Routine failure.              Rescue
+-------------------------------------------------------------------------------
+APPLICATION         root's creation                                     
+<0000000002A405A8>                         Routine failure.              Exit
+-------------------------------------------------------------------------------
+
+ws_client: system execution failed.
+Following is the set of recorded exceptions:
+
+******************************** Thread exception *****************************
+In thread           Child thread           0x140 (thread id)
+*******************************************************************************
+-------------------------------------------------------------------------------
+Class / Object      Routine                Nature of exception           Effect
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_read_stream          WSAECONNRESET: Connection reset by peer.:
+<0000000002900998>  (From SOCKET)          Developer exception.          Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_read_stream                                       
+<0000000002900998>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   read_stream @3                                      
+<0000000002900998>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+WEB_SOCKET_IMPL     read_data_framing @3                                
+<00000000029027B8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+WEB_SOCKET_IMPL     receive @2                                          
+<00000000029027B8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   receive @1                                          
+<0000000002900608>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   execute @10                                         
+<0000000002900608>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   thr_main @3                                         
+<0000000002900608>  (From THREAD)          Routine failure.              Rescue
+-------------------------------------------------------------------------------
+APPLICATION         root's creation                                     
+<00000000029005A8>                         Routine failure.              Exit
+-------------------------------------------------------------------------------
+
+ws_client: system execution failed.
+Following is the set of recorded exceptions:
+
+******************************** Thread exception *****************************
+In thread           Child thread           0x13C (thread id)
+*******************************************************************************
+-------------------------------------------------------------------------------
+Class / Object      Routine                Nature of exception           Effect
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_read_stream          WSAECONNRESET: Connection reset by peer.:
+<0000000002890998>  (From SOCKET)          Developer exception.          Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_read_stream                                       
+<0000000002890998>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   read_stream @3                                      
+<0000000002890998>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+WEB_SOCKET_IMPL     read_data_framing @3                                
+<00000000028927B8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+WEB_SOCKET_IMPL     receive @2                                          
+<00000000028927B8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   receive @1                                          
+<0000000002890608>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   execute @10                                         
+<0000000002890608>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   thr_main @3                                         
+<0000000002890608>  (From THREAD)          Routine failure.              Rescue
+-------------------------------------------------------------------------------
+APPLICATION         root's creation                                     
+<00000000028905A8>                         Routine failure.              Exit
+-------------------------------------------------------------------------------
+
+ws_client: system execution failed.
+Following is the set of recorded exceptions:
+
+******************************** Thread exception *****************************
+In thread           Child thread           0x13C (thread id)
+*******************************************************************************
+-------------------------------------------------------------------------------
+Class / Object      Routine                Nature of exception           Effect
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_read_stream          WSAECONNRESET: Connection reset by peer.:
+<00000000029A0998>  (From SOCKET)          Developer exception.          Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_read_stream                                       
+<00000000029A0998>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   read_stream @3                                      
+<00000000029A0998>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+WEB_SOCKET_IMPL     read_data_framing @3                                
+<00000000029A27B8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+WEB_SOCKET_IMPL     receive @2                                          
+<00000000029A27B8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   receive @1                                          
+<00000000029A0608>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   execute @10                                         
+<00000000029A0608>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   thr_main @3                                         
+<00000000029A0608>  (From THREAD)          Routine failure.              Rescue
+-------------------------------------------------------------------------------
+APPLICATION         root's creation                                     
+<00000000029A05A8>                         Routine failure.              Exit
+-------------------------------------------------------------------------------
+
+ws_client: system execution failed.
+Following is the set of recorded exceptions:
+
+******************************** Thread exception *****************************
+In thread           Child thread           0x144 (thread id)
+*******************************************************************************
+-------------------------------------------------------------------------------
+Class / Object      Routine                Nature of exception           Effect
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_read_stream          WSAECONNRESET: Connection reset by peer.:
+<00000000028D0998>  (From SOCKET)          Developer exception.          Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_read_stream                                       
+<00000000028D0998>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   read_stream @3                                      
+<00000000028D0998>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+WEB_SOCKET_IMPL     read_data_framing @3                                
+<00000000028D27B8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+WEB_SOCKET_IMPL     receive @2                                          
+<00000000028D27B8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   receive @1                                          
+<00000000028D0608>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   execute @10                                         
+<00000000028D0608>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   thr_main @3                                         
+<00000000028D0608>  (From THREAD)          Routine failure.              Rescue
+-------------------------------------------------------------------------------
+APPLICATION         root's creation                                     
+<00000000028D05A8>                         Routine failure.              Exit
+-------------------------------------------------------------------------------
+
+ws_client: system execution failed.
+Following is the set of recorded exceptions:
+
+******************************** Thread exception *****************************
+In thread           Child thread           0x140 (thread id)
+*******************************************************************************
+-------------------------------------------------------------------------------
+Class / Object      Routine                Nature of exception           Effect
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_read_stream          WSAECONNRESET: Connection reset by peer.:
+<0000000002AA0998>  (From SOCKET)          Developer exception.          Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_read_stream                                       
+<0000000002AA0998>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   read_stream @3                                      
+<0000000002AA0998>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+WEB_SOCKET_IMPL     read_data_framing @3                                
+<0000000002AA27B8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+WEB_SOCKET_IMPL     receive @2                                          
+<0000000002AA27B8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   receive @1                                          
+<0000000002AA0608>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   execute @10                                         
+<0000000002AA0608>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Rescue
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   thr_main @3                                         
+<0000000002AA0608>  (From THREAD)          Routine failure.              Rescue
+-------------------------------------------------------------------------------
+APPLICATION         root's creation                                     
+<0000000002AA05A8>                         Routine failure.              Exit
+-------------------------------------------------------------------------------
+
+ws_client: system execution failed.
+Following is the set of recorded exceptions:
+
+******************************** Thread exception *****************************
+In thread           Child thread           0x140 (thread id)
+*******************************************************************************
+-------------------------------------------------------------------------------
+Class / Object      Routine                Nature of exception           Effect
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_read_stream          WSAECONNRESET: Connection reset by peer.:
+<0000000002930998>  (From SOCKET)          Developer exception.          Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   c_read_stream                                       
+<0000000002930998>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+TCP_STREAM_SOCKET   read_stream @3                                      
+<0000000002930998>  (From SOCKET)          Routine failure.              Fail
+-------------------------------------------------------------------------------
+WEB_SOCKET_IMPL     read_data_framing @3                                
+<00000000029327B8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+WEB_SOCKET_IMPL     receive @2                                          
+<00000000029327B8>                         Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   receive @1                                          
+<0000000002930608>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Fail
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   execute @10                                         
+<0000000002930608>  (From WEB_SOCKET_CLIENT)
+                                           Routine failure.              Rescue
+-------------------------------------------------------------------------------
+EXAMPLE_WS_CLIENT   thr_main @3                                         
+<0000000002930608>  (From THREAD)          Routine failure.              Rescue
+-------------------------------------------------------------------------------
+APPLICATION         root's creation                                     
+<00000000029305A8>                         Routine failure.              Exit
+-------------------------------------------------------------------------------

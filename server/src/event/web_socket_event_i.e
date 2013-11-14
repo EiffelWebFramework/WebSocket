@@ -38,6 +38,8 @@ feature -- Web Socket Interface
 			elseif a_opcode = Ping_frame then
 				l_message.append_code (138)         -- reply a Ping with a Pong
 				do_send (conn, l_message, a_message)
+			elseif a_opcode = close_message then
+				conn.send_message (close_message)  -- Send close
 			end
 		end
 
