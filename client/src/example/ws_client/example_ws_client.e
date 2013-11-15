@@ -52,9 +52,7 @@ feature -- Event
 				send (a_message)
 				count := count + 1
 			else -- Send close initiated by the client
-				create l_message.make_empty
-				l_message.append_code(136)
-				socket.send_message (l_message)
+				close (1001)
 			end
 		end
 

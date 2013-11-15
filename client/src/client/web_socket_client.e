@@ -194,7 +194,14 @@ feature -- Methods
 
 	close (a_id: INTEGER)
 			-- Close a websocket connection with a close id : `a_id'
+		local
+			l_message: STRING
 		do
+			create l_message.make_empty
+			l_message.append_code (136)
+			socket.put_string (l_message)
+			ready_state.set_state ({WEB_SOCKET_READY_STATE}.closed)
+			socket.close
 		end
 
 	close_with_description (a_id: INTEGER; a_description: READABLE_STRING_GENERAL)
@@ -217,17 +224,30 @@ feature {NONE} -- Implementation
 			l_random: SALT_XOR_SHIFT_64_GENERATOR
 		do
 			create l_uri.make_from_string (uri.as_string_8)
-			create l_handshake.make_from_string (client_handshake_required_template)
+			create l_handshake.make_empty
+			if l_uri.path.is_empty then
+				l_handshake.append ("GET / HTTP/1.1")
+				l_handshake.append (crlf)
+			else
+				l_handshake.append ("GET "+ l_uri.path+ " HTTP/1.1")
+				l_handshake.append (crlf)
+			end
+
 			if attached l_uri.host as l_host then
 				l_handshake.replace_substring_all ("$host", l_host)
+				l_handshake.append ("Host: "+ l_host)
+				l_handshake.append (crlf)
 			end
-			if l_uri.path.is_empty then
-				l_handshake.replace_substring_all ("$resource", "/")
-			else
-				l_handshake.replace_substring_all ("$resource", l_uri.path)
-			end
+
+			l_handshake.append_string ("Upgrade: websocket")
+			l_handshake.append (crlf)
+			l_handshake.append_string ("Connection: Upgrade")
+			l_handshake.append (crlf)
+			l_handshake.append_string ("Sec-WebSocket-Key: ")
 			create l_random.make (16)
-			l_handshake.replace_substring_all ("$key", base64_encode_array (l_random.new_sequence))
+			l_handshake.append_string (base64_encode_array (l_random.new_sequence))
+			l_handshake.append (crlf)
+			l_handshake.append_string ("Sec-WebSocket-Version: 13")
 			l_handshake.append (crlf)
 			l_handshake.append (crlf)
 			implementation.start_handshake (l_handshake)
