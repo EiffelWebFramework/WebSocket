@@ -256,7 +256,7 @@ feature {NONE} -- Implementation
 	receive_handshake
 		do
 			analyze_request_message
-			if server_handshake.request_header.has_substring ("HTTP/1.1 101 Switching Protocols") and then attached server_handshake.request_header_map.item ("Upgrade") as l_upgrade_key and then -- Upgrade header must be present with value websocket
+			if server_handshake.request_header.has_substring ("HTTP/1.1 101") and then attached server_handshake.request_header_map.item ("Upgrade") as l_upgrade_key and then -- Upgrade header must be present with value websocket
 				l_upgrade_key.is_case_insensitive_equal ("websocket") and then attached server_handshake.request_header_map.item ("Connection") as l_connection_key and then -- Connection header must be present with value Upgrade
 				l_connection_key.has_substring ("Upgrade")
 			then
