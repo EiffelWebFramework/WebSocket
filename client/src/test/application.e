@@ -1,13 +1,12 @@
 note
-	description: "ws_client application root class"
-	date: "$Date$"
-	revision: "$Revision$"
+	description : "test application root class"
+	date        : "$Date$"
+	revision    : "$Revision$"
 
 class
 	APPLICATION
 
 inherit
-
 	ARGUMENTS
 
 create
@@ -18,11 +17,11 @@ feature {NONE} -- Initialization
 	make
 			-- Run application.
 		local
-			ws_client: EXAMPLE_WS_CLIENT
+			ws_client: TEST_AUTOBAHN_CLIENT
 			l_env: EXECUTION_ENVIRONMENT
 		do
 			create l_env
-			create ws_client.make_with_port ("ws://echo.websocket.org", 80)
+			create ws_client.make_with_host_port_path ("ws://127.0.0.1", 9001, "/runCase?case=1&agent=eiffel/websocket")
 			ws_client.launch
 			run
 		end

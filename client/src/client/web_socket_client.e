@@ -56,6 +56,19 @@ feature -- Initialization
 			create server_handshake.make
 		end
 
+	initialize_with_host_port_and_path (a_host: READABLE_STRING_GENERAL; a_port: INTEGER; a_path: READABLE_STRING_GENERAL)
+		require
+			is_valid_uri: is_valid_uri (a_host)
+		do
+			thread_make
+			uri := a_host +":"+a_port.out+ a_path
+			port := a_port
+			create ready_state.make
+			create socket.make_client_by_port (port, host)
+			create server_handshake.make
+		end
+
+
 feature -- Access
 
 	socket: TCP_STREAM_SOCKET
@@ -147,6 +160,7 @@ feature -- Execute
 		do
 			set_implementation
 			socket.connect
+			socket.set_timeout (120)
 			check
 				socket_connected: socket.is_connected
 			end
@@ -228,14 +242,19 @@ feature {NONE} -- Implementation
 			if l_uri.path.is_empty then
 				l_handshake.append ("GET / HTTP/1.1")
 				l_handshake.append (crlf)
-			else
+			elseif l_uri.query = Void  then
 				l_handshake.append ("GET "+ l_uri.path+ " HTTP/1.1")
 				l_handshake.append (crlf)
+			else
+				if attached l_uri.query as l_query then
+					l_handshake.append ("GET "+ l_uri.path+ "?" + l_query + " HTTP/1.1")
+					l_handshake.append (crlf)
+				end
 			end
 
 			if attached l_uri.host as l_host then
-				l_handshake.replace_substring_all ("$host", l_host)
-				l_handshake.append ("Host: "+ l_host)
+				l_handshake.replace_substring_all ("$host", l_host )
+				l_handshake.append ("Host: "+ l_host +":" + port.out)
 				l_handshake.append (crlf)
 			end
 

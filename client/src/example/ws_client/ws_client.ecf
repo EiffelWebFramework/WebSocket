@@ -8,7 +8,6 @@
 		<setting name="concurrency" value="thread"/>
 		<library name="base" location="$ISE_LIBRARY/library/base/base-safe.ecf"/>
 		<library name="web_socket_client" location="../../client/web_socket_client-safe.ecf" readonly="false"/>
-		<library name="thread" location="$ISE_LIBRARY\library\thread\thread-safe.ecf"/>
 		<cluster name="ws_client" location=".\" recursive="true">
 			<file_rule>
 				<exclude>/EIFGENs$</exclude>
