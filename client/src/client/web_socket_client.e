@@ -39,7 +39,11 @@ feature -- Initialization
 			uri := a_uri
 			set_default_port
 			create ready_state.make
-			create socket.make_client_by_port (port, host)
+			if is_tunneled then
+				create socket.make_ssl_client_by_port (port, host)
+			else
+				create socket.make_client_by_port (port, host)
+			end
 			create server_handshake.make
 		end
 
@@ -52,7 +56,11 @@ feature -- Initialization
 			uri := a_uri
 			port := a_port
 			create ready_state.make
-			create socket.make_client_by_port (port, host)
+			if is_tunneled then
+				create socket.make_ssl_client_by_port (port, host)
+			else
+				create socket.make_client_by_port (port, host)
+			end
 			create server_handshake.make
 		end
 
@@ -64,7 +72,11 @@ feature -- Initialization
 			uri := a_host +":"+a_port.out+ a_path
 			port := a_port
 			create ready_state.make
-			create socket.make_client_by_port (port, host)
+			if is_tunneled then
+				create socket.make_ssl_client_by_port (port, host)
+			else
+				create socket.make_client_by_port (port, host)
+			end
 			create server_handshake.make
 		end
 
@@ -160,7 +172,6 @@ feature -- Execute
 		do
 			set_implementation
 			socket.connect
-			socket.set_timeout (120)
 			check
 				socket_connected: socket.is_connected
 			end
@@ -395,7 +406,7 @@ feature -- Parse Request line
 		require
 			is_readable: socket.is_open_read
 		do
-			if socket.socket_ok and then socket.ready_for_reading then
+			if socket.socket_ok then
 				socket.read_line_thread_aware
 				Result := socket.last_string
 			end

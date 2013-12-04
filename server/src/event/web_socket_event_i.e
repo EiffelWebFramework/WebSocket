@@ -17,7 +17,7 @@ inherit
 
 feature -- Web Socket Interface
 
-	on_message (conn: TCP_STREAM_SOCKET; a_message: STRING; a_opcode: INTEGER)
+	on_message (conn: WS_STREAM_SOCKET; a_message: STRING; a_opcode: INTEGER)
 			-- Called when a frame from the client has been receive
 		require
 			conn_attached: conn /= Void
@@ -38,12 +38,12 @@ feature -- Web Socket Interface
 			elseif a_opcode = Ping_frame then
 				l_message.append_code (138)         -- reply a Ping with a Pong
 				do_send (conn, l_message, a_message)
-			elseif a_opcode = close_message then
+			elseif a_opcode = Connection_close_frame then
 				conn.send_message (close_message)  -- Send close
 			end
 		end
 
-	on_open (conn: TCP_STREAM_SOCKET)
+	on_open (conn: WS_STREAM_SOCKET)
 			-- Called after handshake, indicates that a complete WebSocket connection has been established.
 		require
 			conn_attached: conn /= Void
@@ -51,7 +51,7 @@ feature -- Web Socket Interface
 		deferred
 		end
 
-	on_close (conn: TCP_STREAM_SOCKET)
+	on_close (conn: WS_STREAM_SOCKET)
 			-- Called after the WebSocket connection is closed.
 		require
 			conn_attached: conn /= Void
@@ -68,7 +68,7 @@ feature -- Web Socket Interface
 
 feature {NONE} -- Implementation
 
-	do_send (conn: TCP_STREAM_SOCKET; a_header_message: STRING; a_message: STRING)
+	do_send (conn: WS_STREAM_SOCKET; a_header_message: STRING; a_message: STRING)
 		local
 			l_chunks: INTEGER
 			i: INTEGER

@@ -15,7 +15,7 @@ create
 
 feature -- Request processing
 
-	on_open (a_socket: TCP_STREAM_SOCKET)
+	on_open (a_socket: WS_STREAM_SOCKET)
 		do
 			log ("Connecting")
 		end

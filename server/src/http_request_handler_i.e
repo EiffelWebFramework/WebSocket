@@ -53,7 +53,7 @@ feature -- Access
 
 	is_verbose: BOOLEAN
 
-	client_socket: detachable TCP_STREAM_SOCKET
+	client_socket: detachable WS_STREAM_SOCKET
 
 	request_header: STRING
 			-- Header' source
@@ -97,7 +97,7 @@ feature -- Access
 
 feature -- Change
 
-	set_client_socket (a_socket: separate TCP_STREAM_SOCKET)
+	set_client_socket (a_socket: separate WS_STREAM_SOCKET)
 		require
 			socket_attached: a_socket /= Void
 			socket_valid: a_socket.is_open_read and then a_socket.is_open_write
@@ -145,7 +145,7 @@ feature -- Execution
 							opening_handshake (l_socket)
 							on_open (l_socket)
 						else
-							if l_socket.ready_for_reading then
+--							if l_socket.ready_for_reading then
 								l_client_message := read_data_framing (l_socket)
 								if is_data_frame_ok and then not is_close and then not is_incomplete_data then
 									on_message (l_socket, l_client_message,opcode)
@@ -153,7 +153,7 @@ feature -- Execution
 									on_message (l_socket, l_client_message, opcode)
 									exit := True
 								end
-							end
+--							end
 						end
 					else
 						log (generator + ".WAITING execute {" + l_socket.descriptor.out + "}")
@@ -174,7 +174,7 @@ feature -- Execution
 
 feature -- WebSockets
 
-	read_data_framing (a_socket: TCP_STREAM_SOCKET): STRING
+	read_data_framing (a_socket: WS_STREAM_SOCKET): STRING
 			-- TODO Binary messages
 			-- Handle error responses in a better way.
 			-- IDEA:
@@ -184,9 +184,6 @@ feature -- WebSockets
 			--		data/payload
 			--      status_code: #see Status Codes http://tools.ietf.org/html/rfc6455#section-7.3
 			--		has_error
-		note
-			EIS: "name=Data Frame", "src=http://tools.ietf.org/html/rfc6455#section-5", "protocol=uri"
-			EIS: "name=Masking","src=http://tools.ietf.org/html/rfc6455#section-5.3", "protocol=uri"
 		local
 			l_opcode: INTEGER
 			l_len: INTEGER
@@ -283,7 +280,7 @@ feature -- WebSockets
 						until
 							l_remaining
 						loop
-							if a_socket.ready_for_reading then
+--							if a_socket.ready_for_reading then
 								a_socket.read_stream (l_chunk_size)
 								l_frame := a_socket.last_string
 									--  Masking
@@ -296,7 +293,7 @@ feature -- WebSockets
 									Result.append (l_frame)
 								end
 								l_remaining := l_len <= Result.count
-							end
+--							end
 						end
 
 						debug
@@ -308,7 +305,7 @@ feature -- WebSockets
 			end
 		end
 
-	opening_handshake (a_socket: TCP_STREAM_SOCKET)
+	opening_handshake (a_socket: WS_STREAM_SOCKET)
 			-- The opening handshake is intended to be compatible with HTTP-based
 			-- server-side software and intermediaries, so that a single port can be
 			-- used by both HTTP clients alking to that server and WebSocket
@@ -376,7 +373,7 @@ feature -- WebSockets
 
 feature -- Parsing
 
-	analyze_request_message (a_socket: TCP_STREAM_SOCKET)
+	analyze_request_message (a_socket: WS_STREAM_SOCKET)
 			-- Analyze message extracted from `a_socket' as HTTP request
 		require
 			input_readable: a_socket /= Void and then a_socket.is_open_read
@@ -451,12 +448,12 @@ feature -- Parsing
 			has_error := method.is_empty
 		end
 
-	next_line (a_socket: TCP_STREAM_SOCKET): detachable STRING
+	next_line (a_socket: WS_STREAM_SOCKET): detachable STRING
 			-- Next line fetched from `a_socket' is available.
 		require
 			is_readable: a_socket.is_open_read
 		do
-			if a_socket.socket_ok and then a_socket.ready_for_reading then
+			if a_socket.socket_ok  then
 				a_socket.read_line_thread_aware
 				Result := a_socket.last_string
 			end

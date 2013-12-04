@@ -22,7 +22,7 @@ feature {NONE} -- Initialization
 			l_env: EXECUTION_ENVIRONMENT
 		do
 			create l_env
-			create ws_client.make_with_port ("ws://echo.websocket.org", 80)
+			create ws_client.make_with_port ("wss://127.0.0.1",9090)
 			ws_client.launch
 			run
 		end

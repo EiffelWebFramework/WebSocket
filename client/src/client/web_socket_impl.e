@@ -119,11 +119,11 @@ feature -- Receive
 		local
 			l_message: STRING
 		do
-			from
-			until
-				subscriber.connection.ready_for_reading or ready_state.is_closed
-			loop
-			end
+--			from
+--			until
+--				ready_state.is_closed
+--			loop
+--			end
 				l_message := read_data_framing (subscriber.connection)
 				if is_data_frame_ok then
 					if opcode = text_frame then
@@ -281,7 +281,7 @@ feature {NONE} -- Implementation
 						until
 							l_remaining
 						loop
-							if a_socket.ready_for_reading then
+--							if a_socket.ready_for_reading then
 								a_socket.read_stream (l_chunk_size)
 								l_frame := a_socket.last_string
 									--  Masking
@@ -292,7 +292,7 @@ feature {NONE} -- Implementation
 									Result.append (l_frame)
 								end
 								l_remaining := l_len <= Result.count
-							end
+--							end
 						end
 
 						debug

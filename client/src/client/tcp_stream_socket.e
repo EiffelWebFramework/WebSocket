@@ -7,46 +7,75 @@ note
 class
 	TCP_STREAM_SOCKET
 
-inherit
-
-	NETWORK_STREAM_SOCKET
-		redefine
-			make
-		end
-
 create
-	make_server_by_address_and_port, make_server_by_port, make_from_separate, make_client_by_port, make_client_by_address_and_port
-
-create {NETWORK_STREAM_SOCKET}
-	make_from_descriptor_and_address
+	make_client_by_port, make_client_by_address_and_port,
+	make_ssl_client_by_port, make_ssl_client_by_address_and_port
 
 feature {NONE} -- Initialization
 
-	make
-			-- Create a network stream socket.
+	make_client_by_port (a_peer_port: INTEGER; a_peer_host: STRING)
+			-- Create a client connection to `a_peer_host' on
+			-- `a_peer_port'.
 		do
-			Precursor
-			set_reuse_address
+			last_string := ""
+			create {NETWORK_STREAM_SOCKET} socket.make_client_by_port (a_peer_port, a_peer_host)
 		end
 
-	make_from_separate (s: separate TCP_STREAM_SOCKET)
-		require
-			descriptor_available: s.descriptor_available
+
+	make_client_by_address_and_port (a_peer_address: INET_ADDRESS; a_peer_port: INTEGER)
+			-- Create a client connection to `a_peer_host' on
+			-- `a_peer_port'.
 		do
-			create_from_descriptor (s.descriptor)
+			last_string := ""
+			create {NETWORK_STREAM_SOCKET} socket.make_client_by_address_and_port (a_peer_address, a_peer_port)
 		end
 
-	make_server_by_address_and_port (an_address: INET_ADDRESS; a_port: INTEGER)
-			-- Create server socket on `an_address' and `a_port'.
-		require
-			valid_port: a_port >= 0
+
+	make_ssl_client_by_port (a_peer_port: INTEGER; a_peer_host: STRING)
+			-- Create a client connection to `a_peer_host' on
+			-- `a_peer_port'
+		local
+			a_file_name: FILE_NAME
 		do
-			make
-			create address.make_from_address_and_port (an_address, a_port)
-			bind
+			last_string := ""
+			create {SSL_NETWORK_STREAM_SOCKET} socket.make_client_by_port (a_peer_port, a_peer_host)
+
+			if attached {SSL_NETWORK_STREAM_SOCKET} socket as l_ssl then
+				create a_file_name.make_from_string ("C:/OpenSSL-Win64/bin/ca.crt")
+				l_ssl.set_certificate_file_name (a_file_name)
+				create a_file_name.make_from_string ("C:/OpenSSL-Win64/bin/ca.key")
+				l_ssl.set_key_file_name (a_file_name)
+				l_ssl.set_tls_protocol ({SSL_PROTOCOL}.ssl_3)
+				l_ssl.set_blocking
+			end
 		end
+
+
+	make_ssl_client_by_address_and_port (a_peer_address: INET_ADDRESS; a_peer_port: INTEGER)
+			-- Create a client connection to `a_peer_host' on
+			-- `a_peer_port'.
+		do
+			last_string := ""
+			create {SSL_NETWORK_STREAM_SOCKET} socket.make_client_by_address_and_port (a_peer_address, a_peer_port)
+			socket.set_blocking
+		end
+
+
+	socket: SOCKET
+		-- Implementation
 
 feature -- Basic operation
+
+	connect
+		do
+			socket.connect
+		end
+
+	close
+		do
+			socket.close
+		end
+
 
 	send_message (a_msg: STRING)
 		local
@@ -54,10 +83,11 @@ feature -- Basic operation
 			a_data: MANAGED_POINTER
 			c_string: C_STRING
 		do
-			create c_string.make (a_msg)
-			create a_data.make_from_pointer (c_string.item, a_msg.count + 1)
-			create a_package.make_from_managed_pointer (a_data)
-			send (a_package, 1)
+--			create c_string.make (a_msg)
+--			create a_data.make_from_pointer (c_string.item, a_msg.count + 1)
+--			create a_package.make_from_managed_pointer (a_data)
+--			socket.send (a_package, 1)
+			socket.put_string (a_msg)
 		end
 
 feature -- Output
@@ -68,20 +98,70 @@ feature -- Output
 			ext: C_STRING
 		do
 			create ext.make (s)
-			put_managed_pointer (ext.managed_data, 0, s.count)
+			socket.put_managed_pointer (ext.managed_data, 0, s.count)
 		end
+
+	put_string (a_message: STRING)
+		do
+			socket.put_string (a_message)
+		end
+
+feature -- Access
+
+	last_string : STRING
+
 
 feature -- Status report
 
-	try_ready_for_reading: BOOLEAN
+	is_connected: BOOLEAN
+		do
+			if attached {NETWORK_SOCKET} socket as l_socket then
+				Result := l_socket.is_connected
+			end
+		end
+
+
+	is_open_read: BOOLEAN
+		do
+			Result := socket.is_open_read
+		end
+
+	socket_ok: BOOLEAN
+		do
+			Result := socket.socket_ok
+		end
+
+	exists: BOOLEAN
+		do
+			Result := socket.exists
+		end
+
+	ready_for_reading: BOOLEAN
 			-- Is data available for reading from the socket right now?
 		require
 			socket_exists: exists
-		local
-			retval: INTEGER
 		do
-			retval := c_select_poll_with_timeout (descriptor, True, 0)
-			Result := (retval > 0)
+			if attached {NETWORK_SOCKET} socket as l_socket then
+				Result := l_socket.ready_for_reading
+			end
+
+		end
+
+
+feature -- Input
+
+	read_stream, readstream (nb_char: INTEGER)
+			-- Read a string of at most `nb_char' characters.
+			-- Make result available in `last_string'.
+		do
+			socket.read_stream (nb_char)
+			last_string := socket.last_string
+		end
+
+	read_line_thread_aware
+		do
+			socket.read_line_thread_aware
+			last_string := socket.last_string
 		end
 
 note

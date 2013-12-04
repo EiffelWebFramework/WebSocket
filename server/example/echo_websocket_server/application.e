@@ -28,6 +28,7 @@ feature {NONE} -- Initialization
 
 			create l_cfg.make
 			setup (l_cfg, a_port)
+			l_cfg.mark_secure
 
 			create server.make (l_cfg, create {separate APPLICATION_FACTORY})
 		end

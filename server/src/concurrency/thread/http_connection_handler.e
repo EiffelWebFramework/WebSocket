@@ -56,7 +56,7 @@ feature {HTTP_SERVER} -- Execution
 			p.terminate
 		end
 
-	process_incoming_connection (a_socket: TCP_STREAM_SOCKET)
+	process_incoming_connection (a_socket: WS_STREAM_SOCKET)
 		local
 			h: HTTP_REQUEST_HANDLER
 		do
@@ -69,7 +69,7 @@ feature {HTTP_SERVER} -- Execution
 			end
 		end
 
-	process_connection (a_socket: TCP_STREAM_SOCKET; a_pool: like pool)
+	process_connection (a_socket: WS_STREAM_SOCKET; a_pool: like pool)
 			-- Process incoming connection
 			-- note that the precondition matters for scoop synchronization.
 		require
@@ -88,7 +88,7 @@ feature {HTTP_SERVER} -- Execution
 			end
 		end
 
-	process_connection_handler (hdl: separate HTTP_REQUEST_HANDLER; a_socket: TCP_STREAM_SOCKET)
+	process_connection_handler (hdl: separate HTTP_REQUEST_HANDLER; a_socket: WS_STREAM_SOCKET)
 		require
 			not hdl.has_error
 		do

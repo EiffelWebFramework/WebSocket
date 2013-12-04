@@ -19,6 +19,7 @@ feature {NONE} -- Initialization
 			socket_accept_timeout := 1_000
 			socket_connect_timeout := 5_000
 			keep_alive_timeout := 5
+			is_secure := False
 		end
 
 feature -- Access
@@ -41,7 +42,10 @@ feature -- Access
 
 	keep_alive_timeout: INTEGER assign set_keep_alive_timeout
 			-- Persistent connection timeout
-			-- Timeout unit in Seconds.	
+			-- Timeout unit in Seconds.
+
+	is_secure: BOOLEAN
+			 -- Is SSL/TLS session?.			
 
 feature -- Element change
 
@@ -99,6 +103,13 @@ feature -- Element change
 			keep_alive_timeout := a_seconds
 		ensure
 			keep_alive_timeout_set: keep_alive_timeout = a_seconds
+		end
+
+
+	mark_secure
+			-- Set is_secure in True
+		do
+			is_secure := True
 		end
 
 

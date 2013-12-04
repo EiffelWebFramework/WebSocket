@@ -36,7 +36,7 @@ feature {NONE} -- Access
 
 feature {HTTP_SERVER} -- Execution
 
-	process_incoming_connection (a_socket: TCP_STREAM_SOCKET)
+	process_incoming_connection (a_socket: WS_STREAM_SOCKET)
 		deferred
 		end
 
