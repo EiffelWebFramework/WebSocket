@@ -16,23 +16,22 @@ create {WS_STREAM_SOCKET}
 
 feature {NONE} -- Initialization
 
-	make_ssl_server_by_address_and_port (an_address: INET_ADDRESS; a_port: INTEGER)
+	make_ssl_server_by_address_and_port (an_address: INET_ADDRESS; a_port: INTEGER; a_ssl_protocol: NATURAL; a_crt: STRING; a_key: STRING)
 		do
 			create {SSL_TCP_STREAM_SOCKET} socket.make_server_by_address_and_port (an_address, a_port)
-			set_certificates
 			if attached {SSL_TCP_STREAM_SOCKET} socket as l_socket then
-				l_socket.set_tls_protocol ({SSL_PROTOCOL}.ssl_3)
+				l_socket.set_tls_protocol (a_ssl_protocol)
 			end
-
+			set_certificates (a_crt, a_key)
 		end
 
-	make_ssl_server_by_port (a_port: INTEGER)
+	make_ssl_server_by_port (a_port: INTEGER; a_ssl_protocol: NATURAL; a_crt: STRING; a_key: STRING)
 		do
 			create {SSL_TCP_STREAM_SOCKET} socket.make_server_by_port (a_port)
 			if attached {SSL_TCP_STREAM_SOCKET} socket as l_socket then
-				l_socket.set_tls_protocol ({SSL_PROTOCOL}.ssl_3)
+				l_socket.set_tls_protocol (a_ssl_protocol)
 			end
-			set_certificates
+			set_certificates (a_crt, a_key)
 		end
 
 
@@ -59,6 +58,7 @@ feature {NONE} -- Initialization
 				create {SSL_TCP_STREAM_SOCKET} socket.make_from_separate (retrieve_socket (s))
 			else
 				create {TCP_STREAM_SOCKET} socket.make_from_separate (retrieve_socket (s))
+					-- maybe a NULL_STREAM_SOCKET should be better.
 			end
 		end
 
@@ -268,14 +268,14 @@ feature {NONE, WS_STREAM_SOCKET} -- Implementation
 
  	socket: SOCKET
 
-	set_certificates
+	set_certificates (a_crt: STRING; a_key: STRING)
 		local
 			a_file_name: FILE_NAME
 		do
 			if attached {SSL_NETWORK_STREAM_SOCKET}socket as l_socket then
-				create a_file_name.make_from_string ("C:/OpenSSL-Win64/bin/ca.crt")
+				create a_file_name.make_from_string (a_crt)
 				l_socket.set_certificate_file_name (a_file_name)
-				create a_file_name.make_from_string ("C:/OpenSSL-Win64/bin/ca.key")
+				create a_file_name.make_from_string (a_key)
 				l_socket.set_key_file_name (a_file_name)
 			end
 		end

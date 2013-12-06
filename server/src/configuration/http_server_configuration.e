@@ -20,6 +20,9 @@ feature {NONE} -- Initialization
 			socket_connect_timeout := 5_000
 			keep_alive_timeout := 5
 			is_secure := False
+			create ca_crt.make_empty
+			create ca_key.make_empty
+			ssl_protocol := {SSL_PROTOCOL}.tls_1_2
 		end
 
 feature -- Access
@@ -45,7 +48,14 @@ feature -- Access
 			-- Timeout unit in Seconds.
 
 	is_secure: BOOLEAN
-			 -- Is SSL/TLS session?.			
+			 -- Is SSL/TLS session?.
+
+	ca_crt: STRING;
+
+	ca_key: STRING;
+
+	ssl_protocol: NATURAL
+		-- By default protocol is tls 1.2.
 
 feature -- Element change
 
@@ -105,6 +115,30 @@ feature -- Element change
 			keep_alive_timeout_set: keep_alive_timeout = a_seconds
 		end
 
+
+	set_ca_crt (a_value: STRING)
+			-- Set `ca_crt' with `a_value'
+		do
+			ca_crt := a_value
+		ensure
+
+			ca_crt_set: ca_crt = a_value
+		end
+
+
+	set_ca_key (a_value: STRING)
+			-- Set `ca_key' with `a_value'
+		do
+			ca_key := a_value
+		ensure
+			ca_key_set: ca_key = a_value
+		end
+
+	set_ssl_protocol  (a_version: NATURAL)
+			-- Set `ssl_protocol' with `a_version'
+		do
+			ssl_protocol := a_version
+		end
 
 	mark_secure
 			-- Set is_secure in True

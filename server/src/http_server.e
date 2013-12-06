@@ -141,13 +141,13 @@ feature -- Listening
 				attached (create {INET_ADDRESS_FACTORY}).create_from_name (l_servername) as l_addr
 			then
 				if configuration.is_secure then
-					create l_listening_socket.make_ssl_server_by_address_and_port (l_addr, l_http_port)
+					create l_listening_socket.make_ssl_server_by_address_and_port (l_addr, l_http_port, configuration.ssl_protocol, configuration.ca_crt, configuration.ca_key)
 				else
 					create l_listening_socket.make_server_by_address_and_port (l_addr, l_http_port)
 				end
 			else
 				if configuration.is_secure then
-					create l_listening_socket.make_ssl_server_by_port (l_http_port)
+					create l_listening_socket.make_ssl_server_by_port (l_http_port,configuration.ssl_protocol, configuration.ca_crt, configuration.ca_key)
 				else
 					create l_listening_socket.make_server_by_port (l_http_port)
 				end
