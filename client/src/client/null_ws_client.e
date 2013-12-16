@@ -1,5 +1,5 @@
 note
-	description: "Summary description for {NULL_WS_CLIENT}."
+	description: "{NULL_WS_CLIENT}. Null client used for void-safety."
 	author: ""
 	date: "$Date$"
 	revision: "$Revision$"

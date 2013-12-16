@@ -1,8 +1,8 @@
 note
 	description: "[
-				API to perform actions like opening and closing the connection, sending and receiving messages, and listening
-				for events triggered by the server
-				]"
+		API to perform actions like opening and closing the connection, sending and receiving messages, and listening
+		for events triggered by the server
+	]"
 	author: ""
 	date: "$Date$"
 	revision: "$Revision$"
@@ -17,20 +17,25 @@ inherit
 feature -- Access
 
 	uri: READABLE_STRING_GENERAL
-		-- WebSocket Protocol defines two URI schemes, ws and wss for
-		-- unencrypted and encrypted traffic between the client and the server.
+			-- WebSocket Protocol defines two URI schemes, ws and wss for
+			-- unencrypted and encrypted traffic between the client and the server.
 
 	port: INTEGER
-		-- Current WebSocket protocol.	
+			-- Current WebSocket protocol.
 
 	ws_port_default: INTEGER = 80
-		-- WebSocket Protocol uses port 80 for regular WebSocket connections.
+			-- WebSocket Protocol uses port 80 for regular WebSocket connections.
 
 	wss_port_default: INTEGER = 443
-		--  WebSocket connections tunneled over Transport Layer Security (TLS) use port 443.
+			--  WebSocket connections tunneled over Transport Layer Security (TLS) use port 443.
 
- 	protocols: detachable LIST[STRING]
-		-- List of protocol names that the client supports.
+	protocols: detachable LIST [STRING]
+			-- List of protocol names that the client supports.
+
+	protocol: STRING
+			-- Client-Server protocol selected.
+			-- Has the result fo protocol negotiation between client and the server
+			-- By default it's an empty string.
 
 	is_tunneled: BOOLEAN
 			-- Is the current connection tunneled over TLS/SSL?
@@ -42,7 +47,7 @@ feature -- Access
 		end
 
 	ready_state: WEB_SOCKET_READY_STATE
-		-- Connection state	
+			-- Connection state
 
 feature -- Methods
 
@@ -66,4 +71,26 @@ feature -- Methods
 		ensure
 			is_closed: ready_state.is_closed
 		end
+
+feature -- Change Element
+
+	set_protocol (a_protocol: STRING)
+			-- Set `protocol' with `a_protocol'
+		do
+			protocol := a_protocol
+		ensure
+			protocol_set: protocol = a_protocol
+		end
+
+	set_protocols (a_protocols: detachable LIST [STRING])
+		local
+			l_protocols: LIST [STRING]
+		do
+			if attached a_protocols as ll_protocols then
+				create {ARRAYED_LIST [STRING]} l_protocols.make (0)
+				l_protocols.append (ll_protocols)
+				protocols := l_protocols
+			end
+		end
+
 end

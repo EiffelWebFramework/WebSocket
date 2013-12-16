@@ -27,6 +27,7 @@ feature {NONE} -- Initialization
 			reset
 			subscriber := a_subscriber
 			uri := a_uri
+			create protocol.make_empty
 			set_default_port
 			create ready_state.make
 		ensure
@@ -35,6 +36,7 @@ feature {NONE} -- Initialization
 			port_ws:  not is_tunneled implies port = ws_port_default
 			ready_state_set: ready_state.state = {WEB_SOCKET_READY_STATE}.connecting
 			subscriber_set: subscriber = a_subscriber
+			protocol_set: protocol.is_empty
 		end
 
 	make_with_port (a_subscriber: WEB_SOCKET_SUBSCRIBER;a_uri: READABLE_STRING_GENERAL; a_port: INTEGER)
@@ -55,6 +57,7 @@ feature {NONE} -- Initialization
 			reset
 			subscriber := a_subscriber
 			uri := a_uri
+			create protocol.make_empty
 			protocols := a_protocols
 			set_default_port
 			create ready_state.make
@@ -65,6 +68,7 @@ feature {NONE} -- Initialization
 			protocols_set: protocols = a_protocols
 			ready_state_set: ready_state.state = {WEB_SOCKET_READY_STATE}.connecting
 			subscriber_set: subscriber = a_subscriber
+			protocol_set: protocol.is_empty
 		end
 
 
@@ -119,12 +123,9 @@ feature -- Receive
 		local
 			l_message: STRING
 		do
---			from
---			until
---				ready_state.is_closed
---			loop
---			end
 				l_message := read_data_framing (subscriber.connection)
+				print ("%NReceived msg:" + l_message )
+				print ("%NOpcode:" + opcode.out )
 				if is_data_frame_ok then
 					if opcode = text_frame then
 						subscriber.on_websocket_text_message (l_message)
@@ -134,6 +135,8 @@ feature -- Receive
 						subscriber.on_websocket_ping (l_message)
 					elseif opcode = pong_frame then
 						subscriber.on_websocket_pong (l_message)
+					elseif opcode = Connection_close_frame then
+						subscriber.on_websocket_close ("Normal Close")
 					else
 						subscriber.on_websocket_error ("Wrong Opcode")
 					end

@@ -18,7 +18,6 @@ inherit
 			on_websocket_binary_message,
 			on_websocket_close,
 			on_websocket_open
-
 		end
 
 	WEB_SOCKET
@@ -30,7 +29,7 @@ inherit
 
 feature -- Initialization
 
-	initialize (a_uri: READABLE_STRING_GENERAL)
+	initialize (a_uri: READABLE_STRING_GENERAL; a_protocols: detachable LIST [STRING])
 			-- Initialize websocket client
 		require
 			is_valid_uri: is_valid_uri (a_uri)
@@ -38,6 +37,8 @@ feature -- Initialization
 			thread_make
 			uri := a_uri
 			set_default_port
+			create protocol.make_empty
+			set_protocols (a_protocols)
 			create ready_state.make
 			if is_tunneled then
 				create socket.make_ssl_client_by_port (port, host)
@@ -47,7 +48,7 @@ feature -- Initialization
 			create server_handshake.make
 		end
 
-	initialize_with_port (a_uri: READABLE_STRING_GENERAL; a_port: INTEGER)
+	initialize_with_port (a_uri: READABLE_STRING_GENERAL; a_port: INTEGER; a_protocols: detachable LIST [STRING])
 			-- Initialize websocket client
 		require
 			is_valid_uri: is_valid_uri (a_uri)
@@ -55,6 +56,8 @@ feature -- Initialization
 			thread_make
 			uri := a_uri
 			port := a_port
+			create protocol.make_empty
+			set_protocols (a_protocols)
 			create ready_state.make
 			if is_tunneled then
 				create socket.make_ssl_client_by_port (port, host)
@@ -69,8 +72,10 @@ feature -- Initialization
 			is_valid_uri: is_valid_uri (a_host)
 		do
 			thread_make
-			uri := a_host +":"+a_port.out+ a_path
+			uri := a_host + ":" + a_port.out + a_path
 			port := a_port
+			create protocol.make_empty
+--			set_protocols (a_protocols)
 			create ready_state.make
 			if is_tunneled then
 				create socket.make_ssl_client_by_port (port, host)
@@ -79,7 +84,6 @@ feature -- Initialization
 			end
 			create server_handshake.make
 		end
-
 
 feature -- Access
 
@@ -91,7 +95,7 @@ feature -- Access
 			Result := implementation.has_error
 		end
 
-	is_server_hanshake_accpeted : BOOLEAN
+	is_server_hanshake_accpeted: BOOLEAN
 
 	is_valid_uri (a_uri: READABLE_STRING_GENERAL): BOOLEAN
 			-- Is `a_uri' a valid URI?
@@ -135,13 +139,12 @@ feature -- Subscriber Events
 			socket.send_message (a_request)
 		end
 
-
 	on_websocket_text_message (a_message: STRING)
 		do
 			on_text_message (a_message)
 		end
 
-	on_websocket_binary_message(a_message: STRING)
+	on_websocket_binary_message (a_message: STRING)
 		do
 			on_binary_message (a_message)
 		end
@@ -151,18 +154,16 @@ feature -- Subscriber Events
 			on_open (a_message)
 		end
 
-
 	on_websocket_close (a_message: STRING)
 		do
-			on_close (1,a_message) -- TODO fix
+			close_with_description (1000, a_message)
+			on_close (1000, a_message)
 		end
 
 	on_websocket_error (a_error: STRING)
 		do
 			on_error (a_error)
 		end
-
-
 
 feature -- Execute
 
@@ -181,7 +182,6 @@ feature -- Execute
 				ready_state.set_state ({WEB_SOCKET_READY_STATE}.open)
 				on_websocket_open ("Open Connection")
 				from
-
 				until
 					ready_state.is_closed or has_error
 				loop
@@ -189,13 +189,12 @@ feature -- Execute
 				end
 			else
 				on_websocket_error ("Server Handshake not accepted")
-				--log(Not connected)
+					--log(Not connected)
 				socket.close
 			end
 		rescue
 			socket.close
 		end
-
 
 feature -- Methods
 
@@ -208,7 +207,7 @@ feature -- Methods
 			do_send (l_message, a_message)
 		end
 
-	send_binary (a_message : STRING)
+	send_binary (a_message: STRING)
 		local
 			l_message: STRING
 		do
@@ -224,21 +223,28 @@ feature -- Methods
 		do
 			create l_message.make_empty
 			l_message.append_code (136)
-			socket.put_string (l_message)
+			do_send (l_message, "")
 			ready_state.set_state ({WEB_SOCKET_READY_STATE}.closed)
 			socket.close
 		end
 
 	close_with_description (a_id: INTEGER; a_description: READABLE_STRING_GENERAL)
 			-- Close a websocket connection with a close id : `a_id' and a description `a_description'
+		local
+			l_message: STRING
 		do
+			create l_message.make_empty
+			l_message.append_code (136)
+			do_send (l_message, "")
+			ready_state.set_state ({WEB_SOCKET_READY_STATE}.closed)
+			socket.close
 		end
 
 feature {NONE} -- Implementation
 
 	set_implementation
 		do
-			create implementation.make_with_port (Current, host, port)
+			create implementation.make_with_protocols_and_port (Current, host, protocols, port)
 		end
 
 	send_handshake
@@ -247,28 +253,27 @@ feature {NONE} -- Implementation
 			l_data: WEB_SOCKET_HANDSHAKE_DATA
 			l_handshake: STRING
 			l_random: SALT_XOR_SHIFT_64_GENERATOR
+			l_secure_protocol: STRING
 		do
 			create l_uri.make_from_string (uri.as_string_8)
 			create l_handshake.make_empty
 			if l_uri.path.is_empty then
 				l_handshake.append ("GET / HTTP/1.1")
 				l_handshake.append (crlf)
-			elseif l_uri.query = Void  then
-				l_handshake.append ("GET "+ l_uri.path+ " HTTP/1.1")
+			elseif l_uri.query = Void then
+				l_handshake.append ("GET " + l_uri.path + " HTTP/1.1")
 				l_handshake.append (crlf)
 			else
 				if attached l_uri.query as l_query then
-					l_handshake.append ("GET "+ l_uri.path+ "?" + l_query + " HTTP/1.1")
+					l_handshake.append ("GET " + l_uri.path + "?" + l_query + " HTTP/1.1")
 					l_handshake.append (crlf)
 				end
 			end
-
 			if attached l_uri.host as l_host then
-				l_handshake.replace_substring_all ("$host", l_host )
-				l_handshake.append ("Host: "+ l_host +":" + port.out)
+				l_handshake.replace_substring_all ("$host", l_host)
+				l_handshake.append ("Host: " + l_host + ":" + port.out)
 				l_handshake.append (crlf)
 			end
-
 			l_handshake.append_string ("Upgrade: websocket")
 			l_handshake.append (crlf)
 			l_handshake.append_string ("Connection: Upgrade")
@@ -277,6 +282,18 @@ feature {NONE} -- Implementation
 			create l_random.make (16)
 			l_handshake.append_string (base64_encode_array (l_random.new_sequence))
 			l_handshake.append (crlf)
+			if attached protocols as l_protocols then
+				create l_secure_protocol.make_empty
+				across
+					l_protocols as c
+				loop
+					l_secure_protocol.append (c.item)
+					l_secure_protocol.append (" ,")
+				end
+				l_secure_protocol.remove_tail (1)
+				l_handshake.append_string ("Sec-WebSocket-Protocol:" + l_secure_protocol)
+				l_handshake.append (crlf)
+			end
 			l_handshake.append_string ("Sec-WebSocket-Version: 13")
 			l_handshake.append (crlf)
 			l_handshake.append (crlf)
@@ -291,6 +308,9 @@ feature {NONE} -- Implementation
 				l_connection_key.has_substring ("Upgrade")
 			then
 				is_server_hanshake_accpeted := True
+				if attached server_handshake.request_header_map.item ("Sec-WebSocet-Protocol") as l_protocol then
+					set_protocol (l_protocol)
+				end
 			end
 		end
 
@@ -423,8 +443,10 @@ feature -- {WEB_SOCKET_CLIENT}
 			l_key: STRING
 			l_message: STRING
 		do
-			if (a_message.count + 128) > 65535 then
+			print ("%NMessage count:" + a_message.count.out)
+			if  a_message.count > 65535 then
 					--!Improve. this code need to be checked.
+				print("%N Case:1")
 				a_header_message.append_code (127)
 				a_header_message.append_code (0)
 				a_header_message.append_code (0)
@@ -435,29 +457,30 @@ feature -- {WEB_SOCKET_CLIENT}
 				a_header_message.append_code (((a_message.count + 128) |>> 8).to_character_8.code.as_natural_32)
 				a_header_message.append_code ((a_message.count + 128).to_character_8.code.as_natural_32)
 			elseif a_message.count > 125 then
+				print("%N Case:2")
 				a_header_message.append_code (126)
-				a_header_message.append_code (((a_message.count + 128) |>> 8).as_natural_32)
-				a_header_message.append_code ((a_message.count+128).to_character_8.code.as_natural_32)
+				a_header_message.append_code (((a_message.count) + 128 |>> 8).as_natural_32)
+				a_header_message.append_code ((a_message.count +128).to_character_8.code.as_natural_32)
 			else
+				print("%N Case:3")
 				a_header_message.append_code ((a_message.count + 128).as_natural_32)
 			end
-
 			l_key := new_key
-			a_header_message.append (l_key.substring(1,4))
-
-			l_message := implementation.unmmask (a_message, l_key.substring(1,4))
+			a_header_message.append (l_key.substring (1, 4))
+			l_message := implementation.unmmask (a_message, l_key.substring (1, 4))
 			a_header_message.append (l_message)
 			socket.send_message (a_header_message)
 		end
 
-
-	new_key : STRING
+	new_key: STRING
 		local
 			l_random: SALT_XOR_SHIFT_64_GENERATOR
 		do
 			create Result.make_empty
 			create l_random.make (4)
-			across l_random.new_sequence as i loop
+			across
+				l_random.new_sequence as i
+			loop
 				Result.append_integer (i.item)
 			end
 		end
