@@ -8,8 +8,7 @@ class
 	WS_STREAM_SOCKET
 
 create
-	make_ssl_server_by_address_and_port, make_ssl_server_by_port,
-	make_server_by_address_and_port, make_server_by_port, make_from_separate
+	make_ssl_server_by_address_and_port, make_ssl_server_by_port, make_server_by_address_and_port, make_server_by_port, make_from_separate
 
 create {WS_STREAM_SOCKET}
 	make
@@ -34,11 +33,9 @@ feature {NONE} -- Initialization
 			set_certificates (a_crt, a_key)
 		end
 
-
 	make_server_by_address_and_port (an_address: INET_ADDRESS; a_port: INTEGER)
 		do
 			create {TCP_STREAM_SOCKET} socket.make_server_by_address_and_port (an_address, a_port)
-
 		end
 
 	make_server_by_port (a_port: INTEGER)
@@ -49,12 +46,11 @@ feature {NONE} -- Initialization
 	make_from_separate (s: separate WS_STREAM_SOCKET)
 		local
 			l_string: STRING
-
 		do
 			create l_string.make_from_separate (s.socket.generator)
 			if l_string.same_string ("TCP_STREAM_SOCKET") then
 				create {TCP_STREAM_SOCKET} socket.make_from_separate (retrieve_socket (s))
-			elseif l_string.same_string ("SSL_TCP_STREAM_SOCKET") then
+			elseif attached {SSL_TCP_STREAM_SOCKET} s.socket  as l_socket then
 				create {SSL_TCP_STREAM_SOCKET} socket.make_from_separate (retrieve_socket (s))
 			else
 				create {TCP_STREAM_SOCKET} socket.make_from_separate (retrieve_socket (s))
@@ -69,7 +65,6 @@ feature {NONE} -- Initialization
 
 feature -- Access
 
-
 	last_string: STRING
 		do
 			if attached socket as l_socket then
@@ -77,21 +72,17 @@ feature -- Access
 			else
 				Result := ""
 			end
-
 		end
-
 
 	peer_address: detachable NETWORK_SOCKET_ADDRESS
 			-- Peer address of socket
 		do
-			if attached socket as l_socket  then
+			if attached socket as l_socket then
 				if attached {NETWORK_SOCKET_ADDRESS} l_socket.peer_address as l_peer_address then
 					Result := l_peer_address
 				end
-
 			end
 		end
-
 
 feature -- Input
 
@@ -148,9 +139,9 @@ feature -- Status Report
 	is_bound: BOOLEAN
 		do
 			if attached {TCP_STREAM_SOCKET} socket as l_socket then
-					Result := l_socket.is_bound
+				Result := l_socket.is_bound
 			elseif attached {SSL_TCP_STREAM_SOCKET} socket as l_ssl_socket then
-					Result := l_ssl_socket.is_bound
+				Result := l_ssl_socket.is_bound
 			end
 		end
 
@@ -173,7 +164,6 @@ feature -- Status Report
 			if attached socket as l_socket then
 				Result := l_socket.is_open_write
 			end
-
 		end
 
 	is_closed: BOOLEAN
@@ -200,11 +190,10 @@ feature -- Status Report
 	ready_for_writing: BOOLEAN
 		do
 			if attached {TCP_STREAM_SOCKET} socket as l_socket then
-					Result := l_socket.ready_for_writing
+				Result := l_socket.ready_for_writing
 			elseif attached {SSL_TCP_STREAM_SOCKET} socket as l_ssl_socket then
-					Result := l_ssl_socket.ready_for_writing
+				Result := l_ssl_socket.ready_for_writing
 			end
-
 		end
 
 	listen (a_queue: INTEGER)
@@ -243,7 +232,7 @@ feature -- Status Report
 			end
 		end
 
-	accepted : detachable WS_STREAM_SOCKET
+	accepted: detachable WS_STREAM_SOCKET
 		do
 			if attached {TCP_STREAM_SOCKET} socket as l_socket then
 				if attached l_socket.accepted as l_accepted then
@@ -256,7 +245,6 @@ feature -- Status Report
 			end
 		end
 
-
 feature {NONE, WS_STREAM_SOCKET} -- Implementation
 
 	make (a_socket: STREAM_SOCKET)
@@ -264,15 +252,13 @@ feature {NONE, WS_STREAM_SOCKET} -- Implementation
 			socket := a_socket
 		end
 
-
-
- 	socket: SOCKET
+	socket: SOCKET
 
 	set_certificates (a_crt: STRING; a_key: STRING)
 		local
 			a_file_name: FILE_NAME
 		do
-			if attached {SSL_NETWORK_STREAM_SOCKET}socket as l_socket then
+			if attached {SSL_NETWORK_STREAM_SOCKET} socket as l_socket then
 				create a_file_name.make_from_string (a_crt)
 				l_socket.set_certificate_file_name (a_file_name)
 				create a_file_name.make_from_string (a_key)

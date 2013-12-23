@@ -41,11 +41,11 @@ feature {NONE} -- Initialization
 			create {SSL_NETWORK_STREAM_SOCKET} socket.make_client_by_port (a_peer_port, a_peer_host)
 
 			if attached {SSL_NETWORK_STREAM_SOCKET} socket as l_ssl then
-				create a_file_name.make_from_string ("C:/OpenSSL-Win64/bin/ca.crt")
-				l_ssl.set_certificate_file_name (a_file_name)
-				create a_file_name.make_from_string ("C:/OpenSSL-Win64/bin/ca.key")
-				l_ssl.set_key_file_name (a_file_name)
-				l_ssl.set_tls_protocol ({SSL_PROTOCOL}.ssl_3)
+--				create a_file_name.make_from_string ("C:/OpenSSL-Win64/bin/ca.crt")
+--				l_ssl.set_certificate_file_name (a_file_name)
+--				create a_file_name.make_from_string ("C:/OpenSSL-Win64/bin/ca.key")
+--				l_ssl.set_key_file_name (a_file_name)
+				l_ssl.set_tls_protocol ({SSL_PROTOCOL}.ssl_23)
 				l_ssl.set_blocking
 			end
 		end
@@ -83,12 +83,21 @@ feature -- Basic operation
 			a_data: MANAGED_POINTER
 			c_string: C_STRING
 		do
---			create c_string.make (a_msg)
---			create a_data.make_from_pointer (c_string.item, a_msg.count + 1)
---			create a_package.make_from_managed_pointer (a_data)
---			socket.send (a_package, 1)
+			print ("%NClient send message:" + a_msg)
 			socket.put_string (a_msg)
 		end
+
+--	send_message (a_msg: STRING)
+--                local
+--                        a_package : PACKET
+--                        a_data : MANAGED_POINTER
+--                        c_string : C_STRING
+--                do
+--                        create c_string.make (a_msg)
+--                        create a_data.make_from_pointer (c_string.item, a_msg.count + 1)
+--                        create a_package.make_from_managed_pointer (a_data)
+--                        socket.send (a_package, 1)
+--                end
 
 feature -- Output
 

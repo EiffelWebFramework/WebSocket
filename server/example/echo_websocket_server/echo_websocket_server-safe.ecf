@@ -12,6 +12,7 @@
 		</option>
 		<library name="base" location="$ISE_LIBRARY\library\base\base-safe.ecf"/>
 		<library name="net" location="$ISE_LIBRARY\library\net\net-safe.ecf"/>
+		<library name="net_ssl" location="$EIFFEL_LIBRARY\eiffel_net_openssl\net_ssl-safe.ecf"/>
 		<library name="websocket_server" location="..\..\websocket_server-safe.ecf" readonly="false"/>
 		<cluster name="src" location=".\" recursive="true"/>
 	</target>

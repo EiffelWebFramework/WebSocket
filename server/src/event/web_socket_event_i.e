@@ -17,7 +17,7 @@ inherit
 
 feature -- Web Socket Interface
 
-	on_message (conn: WS_STREAM_SOCKET; a_message: STRING; a_opcode: INTEGER)
+	on_event (conn: WS_STREAM_SOCKET; a_message: STRING; a_opcode: INTEGER)
 			-- Called when a frame from the client has been receive
 		require
 			conn_attached: conn /= Void
@@ -27,19 +27,16 @@ feature -- Web Socket Interface
 		do
 			create l_message.make_empty
 			if a_opcode = Binary_frame then
-				l_message.append_code (130)
-				do_send (conn, l_message, a_message)
+				do_send (conn, 2, a_message)
 			elseif a_opcode = Text_frame then
-				l_message.append_code (129)
-				do_send (conn, l_message, a_message)
+				do_send (conn, 1, a_message)
 			elseif a_opcode = Pong_frame then
-				-- log ("Its a pong frame")
-				-- at first we ingore  pong
+					-- log ("Its a pong frame")
+					-- at first we ingore  pong
 			elseif a_opcode = Ping_frame then
-				l_message.append_code (138)         -- reply a Ping with a Pong
-				do_send (conn, l_message, a_message)
+				do_send (conn, 10, a_message)
 			elseif a_opcode = Connection_close_frame then
-				conn.send_message (close_message)  -- Send close
+				conn.send_message (close_message) -- Send close
 			end
 		end
 
@@ -63,60 +60,69 @@ feature -- Web Socket Interface
 	close_message: STRING
 		do
 			create Result.make_empty
-			Result.append_code (136)
+			Result.append_code (129)
+			Result.append_code (2)
 		end
 
 feature {NONE} -- Implementation
 
-	do_send (conn: WS_STREAM_SOCKET; a_header_message: STRING; a_message: STRING)
+	do_send (conn: WS_STREAM_SOCKET;a_opcode:INTEGER; a_message: STRING)
 		local
 			l_chunks: INTEGER
 			i: INTEGER
 			l_index: INTEGER
 			l_chunk_size: INTEGER
+			a_header_message: STRING;
 		do
+
+			create a_header_message.make_empty
+			a_header_message.append_code ((0x80 | a_opcode).to_natural_32)
 			if a_message.count > 65535 then
 					--!Improve. this code need to be checked.
-				a_header_message.append_code (127)
+				a_header_message.append_code ((0 | 127).to_natural_32)
 				a_header_message.append_code (0)
 				a_header_message.append_code (0)
 				a_header_message.append_code (0)
 				a_header_message.append_code (0)
-				a_header_message.append_code (0)
+				a_header_message.append_code ((a_message.count |>> 32).to_character_8.code.as_natural_32)
 				a_header_message.append_code ((a_message.count |>> 16).to_character_8.code.as_natural_32)
 				a_header_message.append_code ((a_message.count |>> 8).to_character_8.code.as_natural_32)
 				a_header_message.append_code (a_message.count.to_character_8.code.as_natural_32)
 			elseif a_message.count > 125 then
-				a_header_message.append_code (126)
+				a_header_message.append_code ((0 | 126).to_natural_32)
 				a_header_message.append_code ((a_message.count |>> 8).as_natural_32)
 				a_header_message.append_code (a_message.count.to_character_8.code.as_natural_32)
 			else
 				a_header_message.append_code (a_message.count.as_natural_32)
 			end
+			a_header_message.append (a_message)
 			conn.put_string (a_header_message)
-			l_chunk_size := 1024
-			if a_message.count < l_chunk_size then
-				conn.put_string (a_message)
-			else
-				l_chunks := a_message.count // l_chunk_size
-				from
-					i := 1
-					l_index := 1
-				until
-					i > l_chunks + 1
-				loop
-					if conn.ready_for_writing and then i <= l_chunks then
-						conn.put_string (a_message.substring (l_index, l_chunk_size * i))
-						l_index := l_chunk_size * i + 1
-						i := i + 1
-					else
-						if l_index < a_message.count then
-							conn.put_string (a_message.substring (l_index, a_message.count))
-						end
-						i := i + 1
-					end
-				end
-			end
+--			l_chunk_size := 16384
+--			if a_message.count < l_chunk_size then
+--				print ("%NSend Message:"+a_message)
+--				conn.put_string (a_message)
+--			else
+--				l_chunks := a_message.count // l_chunk_size
+--				from
+--					i := 1
+--					l_index := 1
+--				until
+--					i > l_chunks + 1
+--				loop
+----					if conn.ready_for_writing and then i <= l_chunks then
+--						conn.put_string (a_message.substring (l_index, l_chunk_size * i))
+--						l_index := l_chunk_size * i + 1
+--						i := i + 1
+----					else
+----						if l_index < a_message.count then
+----							conn.put_string (a_message.substring (l_index, a_message.count))
+----						end
+----						i := i + 1
+----					end
+--				end
+--			end
 		end
+
+
 
 end

@@ -138,6 +138,8 @@ feature -- Element change
 			-- Set `ssl_protocol' with `a_version'
 		do
 			ssl_protocol := a_version
+		ensure
+			ssl_protocol_set: ssl_protocol = a_version
 		end
 
 	mark_secure
