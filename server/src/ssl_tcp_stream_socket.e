@@ -43,10 +43,7 @@ feature -- Basic operation
 			a_data: MANAGED_POINTER
 			c_string: C_STRING
 		do
-			create c_string.make (a_msg)
-			create a_data.make_from_pointer (c_string.item, a_msg.count + 1)
-			create a_package.make_from_managed_pointer (a_data)
-			send (a_package, 1)
+			put_string (a_msg)
 		end
 
 feature -- Output
@@ -72,6 +69,11 @@ feature -- Status report
 			retval := c_select_poll_with_timeout (descriptor, True, 0)
 			Result := (retval > 0)
 		end
+
+feature {NONE}-- Implementation
+
+
+
 
 note
 	copyright: "2011-2013, Javier Velilla, Jocelyn Fiat and others"

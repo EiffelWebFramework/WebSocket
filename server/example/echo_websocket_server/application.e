@@ -28,18 +28,18 @@ feature {NONE} -- Initialization
 
 			create l_cfg.make
 			setup (l_cfg, a_port)
-			l_cfg.mark_secure
-				-- Change the following files to your own files.
-			l_cfg.set_ca_crt ("C:\OpenSSL-Win64\bin\ca.crt")
-			l_cfg.set_ca_key ("C:\OpenSSL-Win64\bin\ca.key")
-			l_cfg.set_ssl_protocol ({SSL_PROTOCOL}.ssl_3)
+--			l_cfg.mark_secure
+--				-- Change the following files to your own files.
+--			l_cfg.set_ca_crt ("C:\OpenSSL-Win64\bin\ca.crt")
+--			l_cfg.set_ca_key ("C:\OpenSSL-Win64\bin\ca.key")
+--			l_cfg.set_ssl_protocol ({SSL_PROTOCOL}.ssl_3)
 
 			create server.make (l_cfg, create {separate APPLICATION_FACTORY})
 		end
 
 	make
 		do
-			make_with_port (9090)
+			make_with_port (9001)
 			launch
 		end
 

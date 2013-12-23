@@ -120,6 +120,7 @@ feature -- Execution
 			l_remote_info: detachable like remote_info
 			exit: BOOLEAN
 			l_client_message: STRING
+			l_utf: UTF_CONVERTER
 		do
 			if attached client_socket as l_socket then
 				debug ("dbglog")
@@ -128,7 +129,7 @@ feature -- Execution
 
 				from
 				until
-					False or else has_error or else exit
+					 has_error or else exit
 				loop
 					if l_socket.ready_for_reading then
 						debug ("dbglog")
@@ -145,16 +146,31 @@ feature -- Execution
 							opening_handshake (l_socket)
 							on_open (l_socket)
 						else
---							if l_socket.ready_for_reading then
 								l_client_message := read_data_framing (l_socket)
-								if is_data_frame_ok and then not is_close and then not is_incomplete_data then
-									on_message (l_socket, l_client_message,opcode)
+								if is_binary then
+									print ("%NPase 1")
+									if is_data_frame_ok and then not is_close and then not is_incomplete_data then
+										on_event (l_socket, l_client_message,opcode)
+									else
+										on_event (l_socket, l_client_message, opcode)
+										exit := True
+									end
+								elseif l_utf.is_valid_utf_8_string_8 (l_client_message) then
+									print ("%NPase 2")
+									if is_data_frame_ok and then not is_close and then not is_incomplete_data then
+										 on_event (l_socket, l_client_message,opcode)
+										else
+										on_event (l_socket, l_client_message, opcode)
+										exit := True
+									end
 								else
-									on_message (l_socket, l_client_message, opcode)
-									exit := True
+									print ("%NPase 3")
+									on_event (l_socket, l_client_message, opcode)
+									if is_close then
+										exit := True
+									end
 								end
---							end
-						end
+							end
 					else
 						log (generator + ".WAITING execute {" + l_socket.descriptor.out + "}")
 					end
@@ -164,6 +180,8 @@ feature -- Execution
 					has_client_socket: False
 				end
 			end
+			release
+		rescue
 			release
 		end
 
@@ -248,7 +266,7 @@ feature -- WebSockets
 				end
 
 					-- At the moment only TEXT, (pending Binary)
-				if (l_opcode = 1  or l_opcode = 2 or l_opcode = 0) and then is_data_frame_ok then -- Binary, Text
+				if (l_opcode = 1  or l_opcode = 2 or l_opcode = 0 or l_opcode = 8 or l_opcode = 9 or l_opcode = 10) and then is_data_frame_ok then -- Binary, Text
 					l_chunk_size := 1024
 					a_socket.read_stream (1)
 					l_len := a_socket.last_string.at (1).code
@@ -264,9 +282,15 @@ feature -- WebSockets
 					if l_len = 127 then  -- TODO proof of concept read 8 bytes.
 						a_socket.read_stream (8)
 						l_len := (a_socket.last_string[6].code |<< 16).bit_or(a_socket.last_string[7].code |<< 8).bit_or(a_socket.last_string[8].code)
+						if l_opcode = 8 or else l_opcode = 9 or l_opcode = 10  and then l_len > 125 then
+							is_data_frame_ok := False
+						end
 					elseif l_len = 126 then
 						a_socket.read_stream (2)
 						l_len := (a_socket.last_string[1].code |<< 8).bit_or(a_socket.last_string[2].code)
+						if l_opcode = 8 or else l_opcode = 9 or l_opcode = 10  and then l_len > 125 then
+							is_data_frame_ok := False
+						end
 					end
 
 					if l_len < 1024 then
@@ -278,28 +302,19 @@ feature -- WebSockets
 						l_key := a_socket.last_string
 						from
 						until
-							l_remaining
+							l_remaining or l_len = 0 or not is_data_frame_ok
 						loop
---							if a_socket.ready_for_reading then
 								a_socket.read_stream (l_chunk_size)
 								l_frame := a_socket.last_string
 									--  Masking
 									--  http://tools.ietf.org/html/rfc6455#section-5.3
 
 								l_frame := unmmask (l_frame, l_key)
-								if l_opcode = 1 then
-									Result.append (l_utf.string_32_to_utf_8_string_8 (l_frame))
-								else
-									Result.append (l_frame)
-								end
+								Result.append (l_frame)
 								l_remaining := l_len <= Result.count
---							end
 						end
-
-						debug
-							log ("Received <===============")
-							log (Result)
-						end
+								log ("Received <===============")
+								log (Result)
 					end
 				end
 			end

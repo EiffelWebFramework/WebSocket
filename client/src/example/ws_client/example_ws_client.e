@@ -47,7 +47,8 @@ feature -- Event
 		do
 			if count <= 10 then
 				print ("%NCount:" + count.out)
-				send (a_message)
+				create l_message.make_empty
+				send (l_message)
 				count := count + 1
 			else -- Send close initiated by the client
 				close (1001)

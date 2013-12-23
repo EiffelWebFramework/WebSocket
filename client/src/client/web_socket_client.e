@@ -17,7 +17,9 @@ inherit
 			on_websocket_text_message,
 			on_websocket_binary_message,
 			on_websocket_close,
-			on_websocket_open
+			on_websocket_open,
+			on_websocket_ping,
+			on_websocket_pong
 		end
 
 	WEB_SOCKET
@@ -163,6 +165,17 @@ feature -- Subscriber Events
 	on_websocket_error (a_error: STRING)
 		do
 			on_error (a_error)
+			close_with_description (1002,"")
+		end
+
+	on_websocket_ping (a_message: STRING)
+		do
+			do_send (10, a_message)
+		end
+
+	on_websocket_pong (a_message: STRING)
+		do
+--			do_send (9, a_message)
 		end
 
 feature -- Execute
@@ -202,28 +215,18 @@ feature -- Methods
 		local
 			l_message: STRING
 		do
-			create l_message.make_empty
-			l_message.append_code (129)
-			do_send (l_message, a_message)
+			do_send (1, a_message)
 		end
 
 	send_binary (a_message: STRING)
-		local
-			l_message: STRING
 		do
-			create l_message.make_empty
-			l_message.append_code (130)
-			do_send (l_message, a_message)
+			do_send (2, a_message)
 		end
 
 	close (a_id: INTEGER)
 			-- Close a websocket connection with a close id : `a_id'
-		local
-			l_message: STRING
 		do
-			create l_message.make_empty
-			l_message.append_code (136)
-			do_send (l_message, "")
+			do_send (8, "")
 			ready_state.set_state ({WEB_SOCKET_READY_STATE}.closed)
 			socket.close
 		end
@@ -231,12 +234,12 @@ feature -- Methods
 	close_with_description (a_id: INTEGER; a_description: READABLE_STRING_GENERAL)
 			-- Close a websocket connection with a close id : `a_id' and a description `a_description'
 		local
-			l_message: STRING
+			env: EXECUTION_ENVIRONMENT
 		do
-			create l_message.make_empty
-			l_message.append_code (136)
-			do_send (l_message, "")
+			do_send (8, "1000,Normal Close")
 			ready_state.set_state ({WEB_SOCKET_READY_STATE}.closed)
+			create env
+			env.sleep (100000)
 			socket.close
 		end
 
@@ -434,7 +437,7 @@ feature -- Parse Request line
 
 feature -- {WEB_SOCKET_CLIENT}
 
-	do_send (a_header_message: STRING; a_message: STRING)
+	do_send (a_opcode: NATURAL_32; a_message: STRING)
 		local
 			l_chunks: INTEGER
 			i: INTEGER
@@ -442,34 +445,45 @@ feature -- {WEB_SOCKET_CLIENT}
 			l_chunk_size: INTEGER
 			l_key: STRING
 			l_message: STRING
+			l_frame : STRING
 		do
 			print ("%NMessage count:" + a_message.count.out)
+			create l_frame.make_empty
+			create l_message.make_empty
 			if  a_message.count > 65535 then
 					--!Improve. this code need to be checked.
 				print("%N Case:1")
-				a_header_message.append_code (127)
-				a_header_message.append_code (0)
-				a_header_message.append_code (0)
-				a_header_message.append_code (0)
-				a_header_message.append_code (0)
-				a_header_message.append_code (0)
-				a_header_message.append_code (((a_message.count + 128) |>> 16).to_character_8.code.as_natural_32)
-				a_header_message.append_code (((a_message.count + 128) |>> 8).to_character_8.code.as_natural_32)
-				a_header_message.append_code ((a_message.count + 128).to_character_8.code.as_natural_32)
+				l_frame.append_code ((0x80 | a_opcode).to_natural_32)
+				l_frame.append_code ((0x80 | 127).to_natural_32)
+
+				l_frame.append_code (0x0)
+				l_frame.append_code (0x0)
+				l_frame.append_code (0x0)
+				l_frame.append_code (0x0)
+				l_frame.append_code (((a_message.count) |>> 32).to_character_8.code.as_natural_32)
+				l_frame.append_code (((a_message.count) |>> 16).to_character_8.code.as_natural_32)
+				l_frame.append_code (((a_message.count ) |>> 8).to_character_8.code.as_natural_32)
+				l_frame.append_code ((a_message.count).to_character_8.code.as_natural_32)
 			elseif a_message.count > 125 then
 				print("%N Case:2")
-				a_header_message.append_code (126)
-				a_header_message.append_code (((a_message.count) + 128 |>> 8).as_natural_32)
-				a_header_message.append_code ((a_message.count +128).to_character_8.code.as_natural_32)
+				print ("Message count:" + a_message.count.out)
+				l_frame.append_code ((0x80 | a_opcode).to_natural_32)
+				l_frame.append_code ((0x80 | 126).to_natural_32)
+				l_frame.append_code (((a_message.count ) |>> 8).as_natural_32)
+				l_frame.append_code ((a_message.count).to_character_8.code.as_natural_32)
+				print ("%NHeaderMessage:" + l_frame)
 			else
 				print("%N Case:3")
-				a_header_message.append_code ((a_message.count + 128).as_natural_32)
+				print ("Message count:" + a_message.count.out)
+				l_frame.append_code ((0x80 | a_opcode).to_natural_32)
+				l_frame.append_code ((0x80 | a_message.count).to_natural_32)
 			end
+			
 			l_key := new_key
-			a_header_message.append (l_key.substring (1, 4))
+			l_frame.append (l_key.substring (1, 4))
 			l_message := implementation.unmmask (a_message, l_key.substring (1, 4))
-			a_header_message.append (l_message)
-			socket.send_message (a_header_message)
+			l_frame.append (l_message)
+			socket.send_message (l_frame)
 		end
 
 	new_key: STRING

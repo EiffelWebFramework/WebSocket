@@ -122,26 +122,35 @@ feature -- Receive
 	receive
 		local
 			l_message: STRING
+			l_utf: UTF_CONVERTER
 		do
 				l_message := read_data_framing (subscriber.connection)
 				print ("%NReceived msg:" + l_message )
 				print ("%NOpcode:" + opcode.out )
-				if is_data_frame_ok then
-					if opcode = text_frame then
-						subscriber.on_websocket_text_message (l_message)
-					elseif opcode = binary_frame then
-						subscriber.on_websocket_binary_message (l_message)
-					elseif opcode = ping_frame then
-						subscriber.on_websocket_ping (l_message)
-					elseif opcode = pong_frame then
-						subscriber.on_websocket_pong (l_message)
-					elseif opcode = Connection_close_frame then
-						subscriber.on_websocket_close ("Normal Close")
+				if l_utf.is_valid_utf_8_string_8 (l_message) then
+					if is_data_frame_ok then
+						if opcode = text_frame then
+							subscriber.on_websocket_text_message (l_message)
+						elseif opcode = binary_frame then
+							subscriber.on_websocket_binary_message (l_message)
+						elseif opcode = ping_frame then
+							subscriber.on_websocket_ping (l_message)
+						elseif opcode = pong_frame then
+							subscriber.on_websocket_pong (l_message)
+						elseif opcode = Connection_close_frame then
+							subscriber.on_websocket_close ("Normal Close")
+						elseif opcode = ping_frame then
+							subscriber.on_websocket_ping (l_message)
+						elseif opcode = pong_frame then
+							subscriber.on_websocket_pong (l_message)
+						else
+							subscriber.on_websocket_error ("Wrong Opcode")
+						end
 					else
-						subscriber.on_websocket_error ("Wrong Opcode")
+						subscriber.on_websocket_close ("Invalid data frame")
 					end
 				else
-					subscriber.on_websocket_close ("Invalid data frame")
+					subscriber.on_websocket_error ("Invalid UTF-8")
 				end
 
 		end
@@ -255,7 +264,7 @@ feature {NONE} -- Implementation
 				end
 
 					-- At the moment only TEXT, (pending Binary)
-				if (l_opcode = 1  or l_opcode = 2 or l_opcode = 0) and then is_data_frame_ok then -- Binary, Text
+				if (l_opcode = 1  or l_opcode = 2 or l_opcode = 0 or l_opcode = 9 or l_opcode = 10) and then is_data_frame_ok then -- Binary, Text
 					l_chunk_size := 1024
 					a_socket.read_stream (1)
 					l_len := a_socket.last_string.at (1).code
@@ -269,9 +278,16 @@ feature {NONE} -- Implementation
 						l_len := l_len - 128
 					end
 					if l_len = 127 then  -- TODO proof of concept read 8 bytes.
+						if l_opcode = 8 or else l_opcode = 9 or l_opcode = 10  and then l_len > 125 then
+							is_data_frame_ok := False
+						end
 						a_socket.read_stream (8)
 						l_len := (a_socket.last_string[6].code |<< 16).bit_or(a_socket.last_string[7].code |<< 8).bit_or(a_socket.last_string[8].code)
 					elseif l_len = 126 then
+						if l_opcode = 8 or else l_opcode = 9 or l_opcode = 10  and then l_len > 125 then
+							is_data_frame_ok := False
+						end
+
 						a_socket.read_stream (2)
 						l_len := (a_socket.last_string[1].code |<< 8).bit_or(a_socket.last_string[2].code)
 					end
@@ -282,7 +298,7 @@ feature {NONE} -- Implementation
 
 						from
 						until
-							l_remaining
+							l_remaining or not is_data_frame_ok or l_len = 0
 						loop
 --							if a_socket.ready_for_reading then
 								a_socket.read_stream (l_chunk_size)
@@ -290,7 +306,8 @@ feature {NONE} -- Implementation
 									--  Masking
 									--  http://tools.ietf.org/html/rfc6455#section-5.3
 								if l_opcode = 1 then
-									Result.append (l_utf.string_32_to_utf_8_string_8 (l_frame))
+--									Result.append (l_utf.string_32_to_utf_8_string_8 (l_frame))
+									Result.append (l_frame)
 								else
 									Result.append (l_frame)
 								end
