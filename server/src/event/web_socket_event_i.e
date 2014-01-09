@@ -27,14 +27,15 @@ feature -- Web Socket Interface
 		do
 			create l_message.make_empty
 			if a_opcode = Binary_frame then
-				do_send (conn, 2, a_message)
+				do_send (conn, Binary_frame, a_message)
 			elseif a_opcode = Text_frame then
-				do_send (conn, 1, a_message)
+				do_send (conn, Text_frame, a_message)
 			elseif a_opcode = Pong_frame then
 					-- log ("Its a pong frame")
-					-- at first we ingore  pong
+					-- at first we ignore  pong
+					-- FIXME: provide better explanation
 			elseif a_opcode = Ping_frame then
-				do_send (conn, 10, a_message)
+				do_send (conn, Pong_frame, a_message)
 			elseif a_opcode = Connection_close_frame then
 				conn.send_message (close_message) -- Send close
 			end
@@ -66,37 +67,38 @@ feature -- Web Socket Interface
 
 feature {NONE} -- Implementation
 
-	do_send (conn: WS_STREAM_SOCKET;a_opcode:INTEGER; a_message: STRING)
+	do_send (conn: WS_STREAM_SOCKET; a_opcode:INTEGER; a_message: STRING)
 		local
 			l_chunks: INTEGER
 			i: INTEGER
 			l_index: INTEGER
 			l_chunk_size: INTEGER
-			a_header_message: STRING;
+			l_header_message: STRING
+			l_message_count: INTEGER
 		do
-
-			create a_header_message.make_empty
-			a_header_message.append_code ((0x80 | a_opcode).to_natural_32)
-			if a_message.count > 65535 then
-					--!Improve. this code need to be checked.
-				a_header_message.append_code ((0 | 127).to_natural_32)
-				a_header_message.append_code (0)
-				a_header_message.append_code (0)
-				a_header_message.append_code (0)
-				a_header_message.append_code (0)
-				a_header_message.append_code ((a_message.count |>> 32).to_character_8.code.as_natural_32)
-				a_header_message.append_code ((a_message.count |>> 16).to_character_8.code.as_natural_32)
-				a_header_message.append_code ((a_message.count |>> 8).to_character_8.code.as_natural_32)
-				a_header_message.append_code (a_message.count.to_character_8.code.as_natural_32)
-			elseif a_message.count > 125 then
-				a_header_message.append_code ((0 | 126).to_natural_32)
-				a_header_message.append_code ((a_message.count |>> 8).as_natural_32)
-				a_header_message.append_code (a_message.count.to_character_8.code.as_natural_32)
+			create l_header_message.make_empty
+			l_header_message.append_code ((0x80 | a_opcode).to_natural_32)
+			l_message_count := a_message.count
+			if l_message_count >= 0xffff then
+					--! Improve. this code needs to be checked.
+				l_header_message.append_code ((0 | 127).to_natural_32)
+				l_header_message.append_character ('%U') -- %U -> code 0
+				l_header_message.append_character ('%U')
+				l_header_message.append_character ('%U')
+				l_header_message.append_character ('%U')
+				l_header_message.append_character ((l_message_count |>> 32).to_character_8)
+				l_header_message.append_character ((l_message_count |>> 16).to_character_8)
+				l_header_message.append_character ((l_message_count |>> 8).to_character_8)
+				l_header_message.append_character (l_message_count.to_character_8)
+			elseif l_message_count > 125 then
+				l_header_message.append_code ((0 | 126).to_natural_32)
+				l_header_message.append_code ((l_message_count |>> 8).as_natural_32)
+				l_header_message.append_character (l_message_count.to_character_8)
 			else
-				a_header_message.append_code (a_message.count.as_natural_32)
+				l_header_message.append_code (l_message_count.as_natural_32)
 			end
-			a_header_message.append (a_message)
-			conn.put_string (a_header_message)
+			l_header_message.append (a_message)
+			conn.put_string (l_header_message)
 --			l_chunk_size := 16384
 --			if a_message.count < l_chunk_size then
 --				print ("%NSend Message:"+a_message)

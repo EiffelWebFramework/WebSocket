@@ -146,31 +146,31 @@ feature -- Execution
 							opening_handshake (l_socket)
 							on_open (l_socket)
 						else
-								l_client_message := read_data_framing (l_socket)
-								if is_binary then
-									print ("%NPase 1")
-									if is_data_frame_ok and then not is_close and then not is_incomplete_data then
-										on_event (l_socket, l_client_message,opcode)
-									else
-										on_event (l_socket, l_client_message, opcode)
-										exit := True
-									end
-								elseif l_utf.is_valid_utf_8_string_8 (l_client_message) then
-									print ("%NPase 2")
-									if is_data_frame_ok and then not is_close and then not is_incomplete_data then
-										 on_event (l_socket, l_client_message,opcode)
-										else
-										on_event (l_socket, l_client_message, opcode)
-										exit := True
-									end
-								else
-									print ("%NPase 3")
+							l_client_message := read_data_framing (l_socket)
+							if is_binary then
+								print ("%NPase 1")
+								if is_data_frame_ok and then not is_close and then not is_incomplete_data then
 									on_event (l_socket, l_client_message, opcode)
-									if is_close then
-										exit := True
-									end
+								else
+									on_event (l_socket, l_client_message, opcode)
+									exit := True
+								end
+							elseif l_utf.is_valid_utf_8_string_8 (l_client_message) then
+								print ("%NPase 2")
+								if is_data_frame_ok and then not is_close and then not is_incomplete_data then
+									on_event (l_socket, l_client_message, opcode)
+								else
+									on_event (l_socket, l_client_message, opcode)
+									exit := True
+								end
+							else
+								print ("%NPase 3")
+								on_event (l_socket, l_client_message, opcode)
+								if is_close then
+									exit := True
 								end
 							end
+						end
 					else
 						log (generator + ".WAITING execute {" + l_socket.descriptor.out + "}")
 					end
@@ -202,18 +202,43 @@ feature -- WebSockets
 			--		data/payload
 			--      status_code: #see Status Codes http://tools.ietf.org/html/rfc6455#section-7.3
 			--		has_error
+			--
+			--	See Base Framing Protocol: http://tools.ietf.org/html/rfc6455#section-5.2
+			--      0                   1                   2                   3
+			--      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+			--     +-+-+-+-+-------+-+-------------+-------------------------------+
+			--     |F|R|R|R| opcode|M| Payload len |    Extended payload length    |
+			--     |I|S|S|S|  (4)  |A|     (7)     |             (16/64)           |
+			--     |N|V|V|V|       |S|             |   (if payload len==126/127)   |
+			--     | |1|2|3|       |K|             |                               |
+			--     +-+-+-+-+-------+-+-------------+ - - - - - - - - - - - - - - - +
+			--     |     Extended payload length continued, if payload len == 127  |
+			--     + - - - - - - - - - - - - - - - +-------------------------------+
+			--     |                               |Masking-key, if MASK set to 1  |
+			--     +-------------------------------+-------------------------------+
+			--     | Masking-key (continued)       |          Payload Data         |
+			--     +-------------------------------- - - - - - - - - - - - - - - - +
+			--     :                     Payload Data continued ...                :
+			--     + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
+			--     |                     Payload Data continued ...                |
+			--     +---------------------------------------------------------------+			
+		note
+			EIS: "name=Unnamed", "protocol=URI", "src=http://www.yourwebsite.com"
 		local
 			l_opcode: INTEGER
 			l_len: INTEGER
-			l_encoded: BOOLEAN
+			l_payload_len: NATURAL_64
 			l_utf: UTF_CONVERTER
-			l_key: STRING
+			l_key: detachable STRING
 			i: INTEGER
 			l_frame: STRING
 			l_rsv: BOOLEAN
 			l_fin: BOOLEAN
+			l_encoded: BOOLEAN
 			l_remaining: BOOLEAN
 			l_chunk_size: INTEGER
+			l_byte: NATURAL_8
+			s: STRING
 		do
 			create Result.make_empty
 			from
@@ -222,99 +247,180 @@ feature -- WebSockets
 			loop
 					-- multi-frames or continue is only valid for Binary or Text
 				a_socket.read_stream (1)
-				is_incomplete_data := a_socket.last_string.is_empty
-				l_opcode := a_socket.last_string.at (1).code
-
-				debug
-					print (to_byte (l_opcode).out)
-				end
-				l_fin := l_opcode & (0b10000000) /= 0
-				l_rsv := l_opcode & (0b01110000) = 0
-				l_opcode := l_opcode & 0xF
-				opcode := l_opcode
-				log ("Standard Action:" + l_opcode.out)
-				is_binary := l_opcode = 2
-				is_close := l_opcode = 8
-				if not ( l_opcode = 0 or else l_opcode = 1 or else l_opcode = 2 or else l_opcode = 8 or else l_opcode = 9 or else l_opcode = 10) then
-					is_data_frame_ok := False
-					close_description := [Protocol_error, "Unkown opcode"]
-				end
-					-- fin validation
-				if not l_fin and then is_data_frame_ok then
-						-- Control frames (see Section 5.5) MAY be injected in the middle of
-						--a fragmented message.  Control frames themselves MUST NOT be fragmented.
-						-- if the l_opcode is a control frame then there is an error!!!
-						-- PING, PONG, CLOSE
-					if l_opcode = 8 or else l_opcode = 9 or l_opcode = 10 then
-						is_data_frame_ok := False
-						close_description := [protocol_error, "Control frames themselves MUST NOT be fragmented."]
+				s := a_socket.last_string
+				if s.is_empty then
+					is_incomplete_data := True
+					debug ("ws")
+						print ("[ERROR] incomplete_data!%N")
 					end
-				end
+				else
+					l_opcode := s[1].code
+					debug ("ws")
+						print (to_byte (l_opcode).out)
+					end
+					l_fin := l_opcode & (0b10000000) /= 0
+					l_rsv := l_opcode & (0b01110000) = 0
+					l_opcode := l_opcode & 0b00001111
+					opcode := l_opcode
+					log ("Standard Action:" + l_opcode.out)
+					is_binary := l_opcode = binary_frame -- 2
+					is_close := l_opcode = connection_close_frame -- 8
+					inspect l_opcode
+					when
+						Continuation_frame, -- 0
+						Text_frame, -- 1
+						Binary_frame, -- 2
+						Connection_close_frame, -- 8
+						Ping_frame, -- 9
+						Pong_frame -- 10
+					then
+							--| Known opcode
+					else
+						is_data_frame_ok := False
+						close_description := [Protocol_error, "Unknown opcode"]
+					end
 
-					-- rsv validation
-				if not l_rsv and then is_data_frame_ok then
-					is_data_frame_ok := False
-						-- RSV1, RSV2, RSV3:  1 bit each
+						-- fin validation
+					if is_data_frame_ok and not l_fin then
+							-- Control frames (see Section 5.5) MAY be injected in the middle of
+							-- a fragmented message.  Control frames themselves MUST NOT be fragmented.
+							-- if the l_opcode is a control frame then there is an error!!!
+							-- PING, PONG, CLOSE
+						if l_opcode = Connection_close_frame or l_opcode = Ping_frame or l_opcode = Pong_frame then
+							is_data_frame_ok := False
+							close_description := [protocol_error, "Control frames themselves MUST NOT be fragmented."]
+						end
+					end
 
-						-- MUST be 0 unless an extension is negotiated that defines meanings
-						-- for non-zero values.  If a nonzero value is received and none of
-						-- the negotiated extensions defines the meaning of such a nonzero
-						-- value, the receiving endpoint MUST _Fail the WebSocket
-						-- Connection_
+						-- rsv validation
+					if is_data_frame_ok and not l_rsv then
+						is_data_frame_ok := False
+							-- RSV1, RSV2, RSV3:  1 bit each
+
+							-- MUST be 0 unless an extension is negotiated that defines meanings
+							-- for non-zero values.  If a nonzero value is received and none of
+							-- the negotiated extensions defines the meaning of such a nonzero
+							-- value, the receiving endpoint MUST _Fail the WebSocket
+							-- Connection_
+
+							-- FIXME: add support for extension ?
 						is_data_frame_ok := False
 						close_description := [protocol_error, "RSV values MUST be 0 unless an extension is negotiated that defines meanings for non-zero values"]
-				end
-
-					-- At the moment only TEXT, (pending Binary)
-				if (l_opcode = 1  or l_opcode = 2 or l_opcode = 0 or l_opcode = 8 or l_opcode = 9 or l_opcode = 10) and then is_data_frame_ok then -- Binary, Text
-					l_chunk_size := 1024
-					a_socket.read_stream (1)
-					l_len := a_socket.last_string.at (1).code
-					is_incomplete_data := l_len < 2
-
-					debug
-						print (to_byte (l_len).out)
 					end
-					l_encoded := l_len >= 128
-					if l_encoded then
-						l_len := l_len - 128
-					end
-					if l_len = 127 then  -- TODO proof of concept read 8 bytes.
-						a_socket.read_stream (8)
-						l_len := (a_socket.last_string[6].code |<< 16).bit_or(a_socket.last_string[7].code |<< 8).bit_or(a_socket.last_string[8].code)
-						if l_opcode = 8 or else l_opcode = 9 or l_opcode = 10  and then l_len > 125 then
-							is_data_frame_ok := False
+
+						-- At the moment only TEXT, (pending Binary)
+					if is_data_frame_ok then
+						check
+							known_opcode:  l_opcode = Continuation_frame -- 0
+										or l_opcode = Text_frame -- 1
+										or l_opcode = Binary_frame  -- 2
+										or l_opcode = Connection_close_frame -- 8
+										or l_opcode = Ping_frame -- 9
+										or l_opcode = Pong_frame -- 10
 						end
-					elseif l_len = 126 then
-						a_socket.read_stream (2)
-						l_len := (a_socket.last_string[1].code |<< 8).bit_or(a_socket.last_string[2].code)
-						if l_opcode = 8 or else l_opcode = 9 or l_opcode = 10  and then l_len > 125 then
-							is_data_frame_ok := False
+
+						if l_opcode = Text_frame or l_opcode = Binary_frame then
+							a_socket.read_stream (1)
+							s := a_socket.last_string
+							if s.is_empty then
+								is_incomplete_data := True
+							else
+								l_len := s[1].code
+								debug ("ws")
+									print (to_byte (l_len).out)
+								end
+
+								l_encoded :=  l_len & (0b10000000) /= 0 -- MASK
+								l_len := l_len & 0b01111111 -- 7bits
+
+--								a_socket.read_stream (1)
+--								s := a_socket.last_string
+--								if s.is_empty then
+--									is_incomplete_data := True
+--								else
+--									l_byte := s[1].code.as_natural_8
+
+								if l_len = 127 then  -- TODO proof of concept read 8 bytes.
+										-- the following 8 bytes interpreted as a 64-bit unsigned integer (the
+      									-- most significant bit MUST be 0) are the payload length.
+      									-- Multibyte length quantities are expressed in network byte order.
+									a_socket.read_stream (8) -- 64 bits
+									s := a_socket.last_string
+									if s.count < 8 then
+										is_incomplete_data := True
+									else
+										l_payload_len := s[8].natural_32_code.to_natural_64
+										l_payload_len := l_payload_len | (s[7].natural_32_code.to_natural_64 |<< 8)
+										l_payload_len := l_payload_len | (s[6].natural_32_code.to_natural_64 |<< 16)
+										l_payload_len := l_payload_len | (s[5].natural_32_code.to_natural_64 |<< 24)
+										l_payload_len := l_payload_len | (s[4].natural_32_code.to_natural_64 |<< 32)
+										l_payload_len := l_payload_len | (s[3].natural_32_code.to_natural_64 |<< 40)
+										l_payload_len := l_payload_len | (s[2].natural_32_code.to_natural_64 |<< 48)
+										l_payload_len := l_payload_len | (s[1].natural_32_code.to_natural_64 |<< 56)
+
+										l_len := (s[6].code |<< 16) | (s[7].code |<< 8) | (s[8].code)
+										if l_opcode = connection_close_frame or l_opcode = ping_frame or l_opcode = pong_frame then
+											is_data_frame_ok := False
+										end
+									end
+								elseif l_len = 126 then
+									a_socket.read_stream (2) -- 16 bits
+									s := a_socket.last_string
+									if s.count < 2 then
+										is_incomplete_data := True
+									else
+										l_payload_len := s[2].natural_32_code.to_natural_64
+										l_payload_len := l_payload_len | (s[1].natural_32_code.to_natural_64 |<< 8)
+										if l_opcode = connection_close_frame or l_opcode = ping_frame or l_opcode = pong_frame then
+											is_data_frame_ok := False
+										end
+									end
+								else
+									l_payload_len := l_len.to_natural_64
+								end
+
+								if is_data_frame_ok and not is_incomplete_data then
+									if l_encoded then
+										a_socket.read_stream (4)
+										l_key := a_socket.last_string
+										is_incomplete_data := l_key.count < 4
+									end
+									if not is_incomplete_data then
+										l_chunk_size := 1_024
+										if l_payload_len > {INTEGER_32}.max_value.to_natural_64 then
+												-- Issue .. to big to store in STRING
+											is_data_frame_ok := False -- FIXME !!!
+										else
+											l_len := l_payload_len.as_integer_32
+										end
+										if l_len < l_chunk_size then
+											l_chunk_size := l_len
+										end
+
+										from
+										until
+											l_remaining or l_len = 0 or not is_data_frame_ok
+										loop
+											a_socket.read_stream (l_chunk_size)
+											l_frame := a_socket.last_string
+												--  Masking
+												--  http://tools.ietf.org/html/rfc6455#section-5.3
+
+											if l_encoded and l_key /= Void then
+												l_frame := unmask (l_frame, l_key)
+											else
+												check client_frame_should_always_be_encoded: False end
+											end
+
+											Result.append (l_frame)
+											l_remaining := l_len <= Result.count
+										end
+										log (l_payload_len.out + " received <===============")
+										log (Result)
+									end
+								end
+							end
 						end
-					end
-
-					if l_len < 1024 then
-						l_chunk_size := l_len
-					end
-
-					if l_encoded then
-						a_socket.read_stream (4)
-						l_key := a_socket.last_string
-						from
-						until
-							l_remaining or l_len = 0 or not is_data_frame_ok
-						loop
-								a_socket.read_stream (l_chunk_size)
-								l_frame := a_socket.last_string
-									--  Masking
-									--  http://tools.ietf.org/html/rfc6455#section-5.3
-
-								l_frame := unmmask (l_frame, l_key)
-								Result.append (l_frame)
-								l_remaining := l_len <= Result.count
-						end
-								log ("Received <===============")
-								log (Result)
 					end
 				end
 			end
@@ -497,7 +603,7 @@ feature -- Parsing
 
 feature -- Masking Data Client - Server
 
-	unmmask (a_frame: READABLE_STRING_8; a_key: READABLE_STRING_8): STRING
+	unmask (a_frame: READABLE_STRING_8; a_key: READABLE_STRING_8): STRING
 			--	 To convert masked data into unmasked data, or vice versa, the following
 			--   algorithm is applied.  The same algorithm applies regardless of the
 			--   direction of the translation, e.g., the same steps are applied to
@@ -515,7 +621,7 @@ feature -- Masking Data Client - Server
 			--   the "Payload data", e.g., the number of bytes following the masking
 			--   key.
 		note
-			EIS: "name=Masking","src=S", "protocol=uri"
+			EIS: "name=Masking","src=http://tools.ietf.org/html/rfc6455#section-5.3", "protocol=uri"
 		local
 			l_frame: STRING
 			i: INTEGER

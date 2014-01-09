@@ -42,6 +42,10 @@ feature {NONE} -- Events
 		do
 		end
 
+	port_number: INTEGER = 9090
+
+	hostname: STRING = "127.0.0.1"
+
 feature -- Test Reading the Client's Opening Handshake
 
 	test_web_socket_connection
@@ -49,8 +53,8 @@ feature -- Test Reading the Client's Opening Handshake
 			msg: STRING
 			address: detachable INET_ADDRESS
 		do
-			address := create_from_name ("localhost")
-			create ws_conn.make_client_by_address_and_port (address, 9090)
+			address := create_from_name (hostname)
+			create ws_conn.make_client_by_address_and_port (address, port_number)
 			ws_conn.set_connect_timeout (1000)
 				-- Connect to the Server
 			ws_conn.connect
@@ -65,7 +69,7 @@ feature -- Test Reading the Client's Opening Handshake
 			msg: STRING
 			l_int: INTEGER
 		do
-			create ws_conn.make_client_by_port (9090, "127.0.0.1")
+			create ws_conn.make_client_by_port (port_number, hostname)
 				-- Connect to the Server
 			ws_conn.connect
 			assert ("Connected", ws_conn.is_connected)
@@ -92,7 +96,7 @@ feature -- Test Reading the Client's Opening Handshake
 			l_int: INTEGER
 			l_addres: INET_ADDRESS
 		do
-			create ws_conn.make_client_by_port (80, "www.websocket.org")
+			create ws_conn.make_client_by_port (port_number, "localhost")
 				-- Connect to the Server
 			ws_conn.connect
 			assert ("Connected", ws_conn.is_connected)
@@ -120,7 +124,7 @@ feature -- Test Reading the Client's Opening Handshake
 			l_frame1: STRING
 			l_frame2: STRING
 		do
-			create ws_conn.make_client_by_port (9090, "127.0.0.1")
+			create ws_conn.make_client_by_port (port_number, hostname)
 				-- Connect to the Server
 			ws_conn.connect
 			assert ("Connected", ws_conn.is_connected)
@@ -158,7 +162,7 @@ feature -- Test Reading the Client's Opening Handshake
 		local
 			msg: STRING
 		do
-			create ws_conn.make_client_by_port (9090, "127.0.0.1")
+			create ws_conn.make_client_by_port (port_number, hostname)
 				-- Connect to the Server
 			ws_conn.connect
 			assert ("Connected", ws_conn.is_connected)
@@ -178,7 +182,7 @@ feature -- Test Reading the Client's Opening Handshake
 		local
 			msg: STRING
 		do
-			create ws_conn.make_client_by_port (9090, "127.0.0.1")
+			create ws_conn.make_client_by_port (port_number, hostname)
 				-- Connect to the Server
 			ws_conn.connect
 			assert ("Connected", ws_conn.is_connected)
@@ -198,7 +202,7 @@ feature -- Test Reading the Client's Opening Handshake
 		local
 			msg: STRING
 		do
-			create ws_conn.make_client_by_port (9090, "127.0.0.1")
+			create ws_conn.make_client_by_port (port_number, hostname)
 				-- Connect to the Server
 			ws_conn.connect
 			assert ("Connected", ws_conn.is_connected)
@@ -218,7 +222,7 @@ feature -- Test Reading the Client's Opening Handshake
 		local
 			msg: STRING
 		do
-			create ws_conn.make_client_by_port (9090, "127.0.0.1")
+			create ws_conn.make_client_by_port (port_number, hostname)
 				-- Connect to the Server
 			ws_conn.connect
 			assert ("Connected", ws_conn.is_connected)
@@ -239,7 +243,7 @@ feature -- Test Reading the Client's Opening Handshake
 		local
 			msg: STRING
 		do
-			create ws_conn.make_client_by_port (9090, "127.0.0.1")
+			create ws_conn.make_client_by_port (port_number, hostname)
 				-- Connect to the Server
 			ws_conn.connect
 			assert ("Connected", ws_conn.is_connected)
@@ -259,7 +263,7 @@ feature -- Test Reading the Client's Opening Handshake
 		local
 			msg: STRING
 		do
-			create ws_conn.make_client_by_port (9090, "127.0.0.1")
+			create ws_conn.make_client_by_port (port_number, hostname)
 				-- Connect to the Server
 			ws_conn.connect
 			assert ("Connected", ws_conn.is_connected)
@@ -279,7 +283,7 @@ feature -- Test Reading the Client's Opening Handshake
 		local
 			msg: STRING
 		do
-			create ws_conn.make_client_by_port (9090, "127.0.0.1")
+			create ws_conn.make_client_by_port (port_number, hostname)
 				-- Connect to the Server
 			ws_conn.connect
 			assert ("Connected", ws_conn.is_connected)
@@ -299,7 +303,7 @@ feature -- Test Reading the Client's Opening Handshake
 		local
 			msg: STRING
 		do
-			create ws_conn.make_client_by_port (9090, "127.0.0.1")
+			create ws_conn.make_client_by_port (port_number, hostname)
 				-- Connect to the Server
 			ws_conn.connect
 			assert ("Connected", ws_conn.is_connected)
