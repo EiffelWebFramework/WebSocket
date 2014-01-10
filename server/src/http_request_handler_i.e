@@ -43,10 +43,7 @@ feature {NONE} -- Initialization
 			create request_header.make_empty
 			create request_header_map.make (10)
 			is_handshake := False
-			is_data_frame_ok := True
 			close_description := [Normal_closure, "Normal close"]
-			is_close := False
-			is_incomplete_data := False
 		end
 
 feature -- Access
@@ -60,8 +57,6 @@ feature -- Access
 
 	request_header_map: HASH_TABLE [STRING, STRING]
 			-- Contains key:value of the header
-
-	is_close: BOOLEAN
 
 	has_error: BOOLEAN
 			-- Error occurred during `analyze_request_message'
@@ -83,17 +78,6 @@ feature -- Access
 
 	is_handshake: BOOLEAN
 			-- Is the handshake already done?
-
-	is_incomplete_data: BOOLEAN
-
-	is_data_frame_ok: BOOLEAN
-			-- Is the last process data framing ok?
-
-	is_binary: BOOLEAN
-			-- Is the type of the message binary?
-
-	opcode : INTEGER
-		-- opcode of the message
 
 feature -- Change
 
@@ -119,7 +103,8 @@ feature -- Execution
 		local
 			l_remote_info: detachable like remote_info
 			exit: BOOLEAN
-			l_client_message: STRING
+			l_frame: detachable WS_FRAME
+			l_client_message: detachable READABLE_STRING_8
 			l_utf: UTF_CONVERTER
 		do
 			if attached client_socket as l_socket then
@@ -146,29 +131,70 @@ feature -- Execution
 							opening_handshake (l_socket)
 							on_open (l_socket)
 						else
-							l_client_message := read_data_framing (l_socket)
-							if is_binary then
-								print ("%NPase 1")
-								if is_data_frame_ok and then not is_close and then not is_incomplete_data then
-									on_event (l_socket, l_client_message, opcode)
-								else
-									on_event (l_socket, l_client_message, opcode)
-									exit := True
+							l_frame := next_frame (l_socket)
+
+							if l_frame /= Void and then l_frame.is_valid then
+								if attached l_frame.injected_control_frames as l_injections then
+										-- Process injected control frames now.
+										-- FIXME
+									across
+										l_injections as ic
+									loop
+										if ic.item.is_connection_close then
+												-- FIXME: we should probably send this event .. after the `l_frame.parent' frame event.
+											on_event (l_socket, ic.item.payload_data, ic.item.opcode)
+		                      				exit := True
+		                      			elseif ic.item.is_ping then
+		                      					-- FIXME reply only to the most recent ping ...
+		                      				on_event (l_socket, ic.item.payload_data, ic.item.opcode)
+		                      			else
+		                      				on_event (l_socket, ic.item.payload_data, ic.item.opcode)
+										end
+									end
 								end
-							elseif l_utf.is_valid_utf_8_string_8 (l_client_message) then
-								print ("%NPase 2")
-								if is_data_frame_ok and then not is_close and then not is_incomplete_data then
-									on_event (l_socket, l_client_message, opcode)
-								else
-									on_event (l_socket, l_client_message, opcode)
-									exit := True
+
+								l_client_message := l_frame.payload_data
+								if l_client_message = Void then
+									l_client_message := ""
 								end
-							else
-								print ("%NPase 3")
-								on_event (l_socket, l_client_message, opcode)
-								if is_close then
-									exit := True
+
+								debug ("ws")
+									print("%NExecute: %N")
+									print (" [opcode: "+ opcode_name (l_frame.opcode) +"]%N")
+									if l_frame.is_text then
+										print (" [client message: %""+ l_client_message +"%"]%N")
+									elseif l_frame.is_binary then
+										print (" [client binary message length: %""+ l_client_message.count.out +"%"]%N")
+									end
+									print (" [is_control: " + l_frame.is_control.out + "]%N")
+									print (" [is_binary: " + l_frame.is_binary.out + "]%N")
+									print (" [is_text: " + l_frame.is_text.out + "]%N")
 								end
+
+								if l_frame.is_connection_close then
+									on_event (l_socket, l_client_message, l_frame.opcode)
+                      				exit := True
+								elseif l_frame.is_binary then
+ 									on_event (l_socket, l_client_message, l_frame.opcode)
+ 								elseif
+ 									l_frame.is_text and then
+	 								l_utf.is_valid_utf_8_string_8 (l_client_message)
+	 							then
+	 								on_event (l_socket, l_client_message, l_frame.opcode)
+	 							else
+	 								on_event (l_socket, l_client_message, l_frame.opcode)
+	 							end
+ 							else
+								debug ("ws")
+									print("%NExecute: %N")
+									print (" [ERROR: invalid frame]%N")
+									if l_frame /= Void and then attached l_frame.error as err then
+										print (" [Code: "+ err.code.out +"]%N")
+										print (" [Description: "+ err.description +"]%N")
+									end
+								end
+								on_event (l_socket, "", connection_close_frame)
+ 								exit := True
 							end
 						end
 					else
@@ -192,7 +218,7 @@ feature -- Execution
 
 feature -- WebSockets
 
-	read_data_framing (a_socket: WS_STREAM_SOCKET): STRING
+	next_frame (a_socket: WS_STREAM_SOCKET): detachable WS_FRAME
 			-- TODO Binary messages
 			-- Handle error responses in a better way.
 			-- IDEA:
@@ -223,131 +249,145 @@ feature -- WebSockets
 			--     |                     Payload Data continued ...                |
 			--     +---------------------------------------------------------------+			
 		note
-			EIS: "name=Unnamed", "protocol=URI", "src=http://www.yourwebsite.com"
+			EIS: "name=WebSocket RFC", "protocol=URI", "src=http://tools.ietf.org/html/rfc6455#section-5.2"
 		local
 			l_opcode: INTEGER
 			l_len: INTEGER
 			l_payload_len: NATURAL_64
-			l_utf: UTF_CONVERTER
-			l_key: detachable STRING
-			i: INTEGER
-			l_frame: STRING
+--			l_utf: UTF_CONVERTER
+			l_masking_key: detachable READABLE_STRING_8
+--			i: INTEGER
+			l_chunk: STRING
 			l_rsv: BOOLEAN
 			l_fin: BOOLEAN
-			l_encoded: BOOLEAN
+			l_has_mask: BOOLEAN
 			l_remaining: BOOLEAN
 			l_chunk_size: INTEGER
-			l_byte: NATURAL_8
+			l_byte: INTEGER
 			s: STRING
+			is_data_frame_ok: BOOLEAN -- Is the last process data framing ok?
+
+--			is_close: BOOLEAN
+--			is_incomplete_data: BOOLEAN
+--			is_binary: BOOLEAN
+--					-- Is the type of the message binary?				
 		do
-			create Result.make_empty
+			debug ("ws")
+				print ("next_frame:%N")
+			end
+
 			from
+				is_data_frame_ok := True
 			until
-				l_fin or not is_data_frame_ok or is_incomplete_data
+				l_fin or not is_data_frame_ok -- or is_incomplete_data
 			loop
 					-- multi-frames or continue is only valid for Binary or Text
 				a_socket.read_stream (1)
 				s := a_socket.last_string
 				if s.is_empty then
-					is_incomplete_data := True
+					is_data_frame_ok := False
 					debug ("ws")
 						print ("[ERROR] incomplete_data!%N")
 					end
 				else
-					l_opcode := s[1].code
+					l_byte := s[1].code
 					debug ("ws")
-						print (to_byte (l_opcode).out)
+						print ("   fin,rsv(3),opcode(4)=")
+						print (to_byte_representation (l_byte))
+						print ("%N")
 					end
-					l_fin := l_opcode & (0b10000000) /= 0
-					l_rsv := l_opcode & (0b01110000) = 0
-					l_opcode := l_opcode & 0b00001111
-					opcode := l_opcode
-					log ("Standard Action:" + l_opcode.out)
-					is_binary := l_opcode = binary_frame -- 2
-					is_close := l_opcode = connection_close_frame -- 8
-					inspect l_opcode
-					when
-						Continuation_frame, -- 0
-						Text_frame, -- 1
-						Binary_frame, -- 2
-						Connection_close_frame, -- 8
-						Ping_frame, -- 9
-						Pong_frame -- 10
-					then
-							--| Known opcode
+					l_fin := l_byte & (0b10000000) /= 0
+					l_rsv := l_byte & (0b01110000) = 0
+					l_opcode := l_byte & 0b00001111
+
+					if Result /= Void then
+						if l_opcode = Result.opcode then
+							check
+									-- should not occur in multi-fragment frame!
+								should_not_occur: False
+							end
+							Result.report_error (protocol_error, "Unexpected frame")
+						elseif l_opcode = continuation_frame then
+								-- Expected
+						elseif is_control_frame (l_opcode) then
+								-- Control frames (see Section 5.5) MAY be injected in the middle of
+								-- a fragmented message.  Control frames themselves MUST NOT be fragmented.
+								-- if the l_opcode is a control frame then there is an error!!!
+								-- CLOSE, PING, PONG
+							create Result.make_as_injected_control (l_opcode, Result)
+						elseif l_opcode = connection_close_frame then
+								-- ??? what should we do here?
+						else
+							check
+									-- should not occur in multi-fragment frame!
+								should_not_occur: False
+							end
+							Result.report_error (protocol_error, "Unexpected frame")
+						end
 					else
-						is_data_frame_ok := False
-						close_description := [Protocol_error, "Unknown opcode"]
+						create Result.make (l_opcode, l_fin)
 					end
 
-						-- fin validation
-					if is_data_frame_ok and not l_fin then
-							-- Control frames (see Section 5.5) MAY be injected in the middle of
-							-- a fragmented message.  Control frames themselves MUST NOT be fragmented.
-							-- if the l_opcode is a control frame then there is an error!!!
-							-- PING, PONG, CLOSE
-						if l_opcode = Connection_close_frame or l_opcode = Ping_frame or l_opcode = Pong_frame then
-							is_data_frame_ok := False
-							close_description := [protocol_error, "Control frames themselves MUST NOT be fragmented."]
+					log ("%NStandard Action:" + opcode_name (l_opcode))
+
+					if Result.is_valid then
+							--| valid frame/fragment
+
+							-- rsv validation
+						if not l_rsv then
+								-- RSV1, RSV2, RSV3:  1 bit each
+
+								-- MUST be 0 unless an extension is negotiated that defines meanings
+								-- for non-zero values.  If a nonzero value is received and none of
+								-- the negotiated extensions defines the meaning of such a nonzero
+								-- value, the receiving endpoint MUST _Fail the WebSocket
+								-- Connection_
+
+								-- FIXME: add support for extension ?
+							Result.report_error (protocol_error, "RSV values MUST be 0 unless an extension is negotiated that defines meanings for non-zero values")
 						end
 					end
 
-						-- rsv validation
-					if is_data_frame_ok and not l_rsv then
-						is_data_frame_ok := False
-							-- RSV1, RSV2, RSV3:  1 bit each
-
-							-- MUST be 0 unless an extension is negotiated that defines meanings
-							-- for non-zero values.  If a nonzero value is received and none of
-							-- the negotiated extensions defines the meaning of such a nonzero
-							-- value, the receiving endpoint MUST _Fail the WebSocket
-							-- Connection_
-
-							-- FIXME: add support for extension ?
-						is_data_frame_ok := False
-						close_description := [protocol_error, "RSV values MUST be 0 unless an extension is negotiated that defines meanings for non-zero values"]
-					end
 
 						-- At the moment only TEXT, (pending Binary)
-					if is_data_frame_ok then
-						check
-							known_opcode:  l_opcode = Continuation_frame -- 0
-										or l_opcode = Text_frame -- 1
-										or l_opcode = Binary_frame  -- 2
-										or l_opcode = Connection_close_frame -- 8
-										or l_opcode = Ping_frame -- 9
-										or l_opcode = Pong_frame -- 10
-						end
-
-						if l_opcode = Text_frame or l_opcode = Binary_frame then
+					if Result.is_valid then
+						if Result.is_text or Result.is_binary or Result.is_control then
+									-- Reading next byte (mask+payload_len)
 							a_socket.read_stream (1)
 							s := a_socket.last_string
 							if s.is_empty then
-								is_incomplete_data := True
+								Result.report_error (invalid_data, "Incomplete data for mask and payload len")
 							else
-								l_len := s[1].code
+								l_byte := s[1].code
 								debug ("ws")
-									print (to_byte (l_len).out)
+									print ("   mask,payload_len(7)=")
+									print (to_byte_representation (l_byte))
+									io.put_new_line
+								end
+								l_has_mask :=  l_byte & (0b10000000) /= 0 -- MASK
+								l_len := l_byte & 0b01111111 -- 7bits
+
+								debug ("ws")
+									print ("   payload_len=" + l_len.out)
+									io.put_new_line
 								end
 
-								l_encoded :=  l_len & (0b10000000) /= 0 -- MASK
-								l_len := l_len & 0b01111111 -- 7bits
-
---								a_socket.read_stream (1)
---								s := a_socket.last_string
---								if s.is_empty then
---									is_incomplete_data := True
---								else
---									l_byte := s[1].code.as_natural_8
-
-								if l_len = 127 then  -- TODO proof of concept read 8 bytes.
-										-- the following 8 bytes interpreted as a 64-bit unsigned integer (the
-      									-- most significant bit MUST be 0) are the payload length.
+								if Result.is_control and then l_len > 125 then
+										-- All control frames MUST have a payload length of 125 bytes or less
+   										-- and MUST NOT be fragmented.
+									Result.report_error (protocol_error, "Control frame MUST have a payload length of 125 bytes or less")
+								elseif l_len = 127 then  -- TODO proof of concept read 8 bytes.
+										-- the following 8 bytes interpreted as a 64-bit unsigned integer
+										-- (the most significant bit MUST be 0) are the payload length.
       									-- Multibyte length quantities are expressed in network byte order.
 									a_socket.read_stream (8) -- 64 bits
 									s := a_socket.last_string
+									debug ("ws")
+										print ("   extended payload length=" + string_to_byte_representation (s))
+										io.put_new_line
+									end
 									if s.count < 8 then
-										is_incomplete_data := True
+										Result.report_error (Invalid_data, "Incomplete data for 64 bit Extended payload length")
 									else
 										l_payload_len := s[8].natural_32_code.to_natural_64
 										l_payload_len := l_payload_len | (s[7].natural_32_code.to_natural_64 |<< 8)
@@ -357,71 +397,96 @@ feature -- WebSockets
 										l_payload_len := l_payload_len | (s[3].natural_32_code.to_natural_64 |<< 40)
 										l_payload_len := l_payload_len | (s[2].natural_32_code.to_natural_64 |<< 48)
 										l_payload_len := l_payload_len | (s[1].natural_32_code.to_natural_64 |<< 56)
-
-										l_len := (s[6].code |<< 16) | (s[7].code |<< 8) | (s[8].code)
-										if l_opcode = connection_close_frame or l_opcode = ping_frame or l_opcode = pong_frame then
-											is_data_frame_ok := False
-										end
 									end
 								elseif l_len = 126 then
 									a_socket.read_stream (2) -- 16 bits
 									s := a_socket.last_string
+									debug ("ws")
+										print ("   extended payload length bits=" + string_to_byte_representation (s))
+										io.put_new_line
+									end
 									if s.count < 2 then
-										is_incomplete_data := True
+										Result.report_error (Invalid_data, "Incomplete data for 16 bit Extended payload length")
 									else
 										l_payload_len := s[2].natural_32_code.to_natural_64
 										l_payload_len := l_payload_len | (s[1].natural_32_code.to_natural_64 |<< 8)
-										if l_opcode = connection_close_frame or l_opcode = ping_frame or l_opcode = pong_frame then
-											is_data_frame_ok := False
-										end
 									end
 								else
 									l_payload_len := l_len.to_natural_64
 								end
+								debug ("ws")
+									print ("   Full payload length=" + l_payload_len.out)
+									io.put_new_line
+								end
 
-								if is_data_frame_ok and not is_incomplete_data then
-									if l_encoded then
+								if Result.is_valid then
+									if l_has_mask then
 										a_socket.read_stream (4)
-										l_key := a_socket.last_string
-										is_incomplete_data := l_key.count < 4
+										l_masking_key := a_socket.last_string
+										debug ("ws")
+											print ("   Masking key bits=" + string_to_byte_representation (l_masking_key))
+											io.put_new_line
+										end
+										if l_masking_key.count < 4 then
+											Result.report_error (Invalid_data, "Incomplete data for Masking-key")
+											l_masking_key := Void
+										end
+									else
+										Result.report_error (protocol_error, "All frames sent from client to server are masked!")
 									end
-									if not is_incomplete_data then
-										l_chunk_size := 1_024
+									if Result.is_valid then
+										l_chunk_size := 0x4000 -- 16 K
 										if l_payload_len > {INTEGER_32}.max_value.to_natural_64 then
 												-- Issue .. to big to store in STRING
-											is_data_frame_ok := False -- FIXME !!!
+												-- FIXME !!!
+											Result.report_error (Message_too_large, "Can not handle payload data (len=" + l_payload_len.out + ")")
 										else
-											l_len := l_payload_len.as_integer_32
+											l_len := l_payload_len.to_integer_32
 										end
+
 										if l_len < l_chunk_size then
 											l_chunk_size := l_len
 										end
-
 										from
+											create s.make (l_len)
 										until
-											l_remaining or l_len = 0 or not is_data_frame_ok
+											s.count >= l_len or l_len = 0 or not Result.is_valid
 										loop
 											a_socket.read_stream (l_chunk_size)
-											l_frame := a_socket.last_string
-												--  Masking
-												--  http://tools.ietf.org/html/rfc6455#section-5.3
-
-											if l_encoded and l_key /= Void then
-												l_frame := unmask (l_frame, l_key)
+											l_chunk := a_socket.last_string
+											if l_masking_key /= Void then
+													--  Masking
+													--  http://tools.ietf.org/html/rfc6455#section-5.3
+												l_chunk := unmask (l_chunk, l_masking_key)
 											else
 												check client_frame_should_always_be_encoded: False end
 											end
-
-											Result.append (l_frame)
-											l_remaining := l_len <= Result.count
+											s.append (l_chunk)
+--											l_remaining := s.count < l_len
 										end
-										log (l_payload_len.out + " received <===============")
-										log (Result)
+										log ("%N" + l_len.out + " received <===============")
+										if Result.is_text then
+											log (s.head (50) + "..")
+										end
+										Result.append_payload_data_fragment (s, l_payload_len)
 									end
 								end
 							end
 						end
 					end
+				end
+				if Result /= Void then
+					if Result.is_injected_control and then attached Result.parent as l_parent then
+						if not Result.is_valid then
+							l_parent.report_error (protocol_error, "Invalid injected frame")
+						end
+						Result := l_parent
+					end
+					if not Result.is_valid then
+						is_data_frame_ok := False
+					end
+				else
+					is_data_frame_ok := False
 				end
 			end
 		end
@@ -450,7 +515,7 @@ feature -- WebSockets
 				-- Reading client's opening GT
 
 				-- TODO extract to a validator handshake or something like that.
-			log ("Receive <====================")
+			log ("%NReceive <====================")
 			log (request_header)
 			if method.same_string ("GET") then --item MUST be GET
 				if attached request_header_map.item (Sec_WebSocket_Key) as l_ws_key and then -- Sec-websocket-key must be present
@@ -474,14 +539,14 @@ feature -- WebSockets
 						-- end of header empty line
 					l_handshake.append_string ("%R%N")
 					io.put_new_line
-					log ("================> Send")
+					log ("%N================> Send")
 					log (l_handshake)
 					a_socket.put_string (l_handshake)
 					is_handshake := True -- the connection is in OPEN State.
 				end
 			end
 			if not is_handshake then
-				log ("Error!!!")
+				log ("Error (opening_handshake)!!!")
 					-- If we cannot complete the handshake, then the server MUST stop processing the client's handshake and return an HTTP response with an
 					-- appropriate error code (such as 400 Bad Request).
 				has_error := True
@@ -663,25 +728,45 @@ feature -- Output
 
 feature {NONE} -- Debug		
 
-	to_byte (a_integer: INTEGER): ARRAY [INTEGER]
+	to_byte_representation (a_integer: INTEGER): STRING
 		require
 			valid: a_integer >= 0 and then a_integer <= 255
 		local
 			l_val: INTEGER
-			l_index: INTEGER
 		do
-			create Result.make_filled (0, 1, 8)
+			create Result.make (8)
 			from
 				l_val := a_integer
-				l_index := 8
 			until
 				l_val < 2
 			loop
-				Result.put (l_val \\ 2, l_index)
+				Result.prepend_integer (l_val \\ 2)
 				l_val := l_val // 2
-				l_index := l_index - 1
 			end
-			Result.put (l_val, l_index)
+			Result.prepend_integer (l_val)
+		end
+
+	string_to_byte_representation (s: STRING): STRING
+		require
+			valid: s.count > 0
+		local
+			i, n: INTEGER
+		do
+			n := s.count
+			create Result.make (8 * n)
+			if n > 0 then
+				from
+					i := 1
+				until
+					i > n
+				loop
+					if not Result.is_empty then
+						Result.append_character (':')
+					end
+					Result.append (to_byte_representation (s[i].code))
+					i := i + 1
+				end
+			end
 		end
 
 invariant
