@@ -322,6 +322,7 @@ feature -- WebSockets
 									-- if the l_opcode is a control frame then there is an error!!!
 									-- CLOSE, PING, PONG
 								create Result.make_as_injected_control (l_opcode, Result)
+								l_fin := False -- We read the control frame but we are in a multi-fragmented case
 							elseif l_opcode = connection_close_frame then
 									-- ??? what should we do here?
 							else
