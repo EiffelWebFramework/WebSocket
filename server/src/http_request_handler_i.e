@@ -253,6 +253,7 @@ feature -- WebSockets
 		local
 			l_opcode: INTEGER
 			l_len: INTEGER
+			l_remaining_len: INTEGER
 			l_payload_len: NATURAL_64
 --			l_utf: UTF_CONVERTER
 			l_masking_key: detachable READABLE_STRING_8
@@ -261,7 +262,6 @@ feature -- WebSockets
 			l_rsv: BOOLEAN
 			l_fin: BOOLEAN
 			l_has_mask: BOOLEAN
-			l_remaining: BOOLEAN
 			l_chunk_size: INTEGER
 			l_byte: INTEGER
 			s: STRING
@@ -347,7 +347,6 @@ feature -- WebSockets
 							Result.report_error (protocol_error, "RSV values MUST be 0 unless an extension is negotiated that defines meanings for non-zero values")
 						end
 					end
-
 
 						-- At the moment only TEXT, (pending Binary)
 					if Result.is_valid then
@@ -444,27 +443,42 @@ feature -- WebSockets
 											l_len := l_payload_len.to_integer_32
 										end
 
-										if l_len < l_chunk_size then
-											l_chunk_size := l_len
-										end
+--										if l_len < l_chunk_size then
+--											l_chunk_size := l_len
+--										end
 										from
 											create s.make (l_len)
+											l_remaining_len := l_len
 										until
 											s.count >= l_len or l_len = 0 or not Result.is_valid
 										loop
-											a_socket.read_stream (l_chunk_size)
-											l_chunk := a_socket.last_string
-											if l_masking_key /= Void then
-													--  Masking
-													--  http://tools.ietf.org/html/rfc6455#section-5.3
-												l_chunk := unmask (l_chunk, l_masking_key)
-											else
-												check client_frame_should_always_be_encoded: False end
+											if l_remaining_len < l_chunk_size then
+												l_chunk_size := l_remaining_len
 											end
-											s.append (l_chunk)
---											l_remaining := s.count < l_len
+											a_socket.read_stream (l_chunk_size)
+											debug ("ws")
+												print ("read chunk size=" + l_chunk_size.out + " s.count="+ s.count.out +" l_len="+l_len.out+" -> " + a_socket.bytes_read.out + "bytes%N")
+											end
+											if a_socket.bytes_read > 0 then
+												l_remaining_len := l_remaining_len - a_socket.bytes_read
+
+												l_chunk := a_socket.last_string
+												if l_masking_key /= Void then
+														--  Masking
+														--  http://tools.ietf.org/html/rfc6455#section-5.3
+													append_chunk_unmasked (l_chunk, s.count + 1, l_masking_key, s)
+												else
+													s.append (l_chunk)
+													check client_frame_should_always_be_encoded: False end
+												end
+											else
+												Result.report_error (internal_error, "Issue reading payload data...")
+											end
 										end
-										log ("%N" + l_len.out + " received <===============")
+										log ("%N" + s.count.out + " out of " + l_len.out + " received <===============")
+--										if l_masking_key /= Void then
+--											s := unmask (s, l_masking_key)
+--										end
 										if Result.is_text then
 											log (s.head (50) + "..")
 										end
@@ -688,19 +702,54 @@ feature -- Masking Data Client - Server
 		note
 			EIS: "name=Masking","src=http://tools.ietf.org/html/rfc6455#section-5.3", "protocol=uri"
 		local
-			l_frame: STRING
-			i: INTEGER
+			i,n: INTEGER
 		do
-			l_frame := a_frame.twin
+			create Result.make (a_frame.count)
 			from
 				i := 1
+				n := a_frame.count
 			until
-				i > l_frame.count
+				i > n
 			loop
-				l_frame [i] := (l_frame [i].code.to_integer_8.bit_xor (a_key [((i - 1) \\ 4) + 1].code.to_integer_8)).to_character_8
+				Result.append_code (a_frame.code (i).bit_xor (a_key [((i - 1) \\ 4) + 1].natural_32_code))
 				i := i + 1
 			end
-			Result := l_frame
+		end
+
+	append_chunk_unmasked (a_chunk: READABLE_STRING_8; a_pos: INTEGER; a_key: READABLE_STRING_8; a_target: STRING)
+			--	 To convert masked data into unmasked data, or vice versa, the following
+			--   algorithm is applied.  The same algorithm applies regardless of the
+			--   direction of the translation, e.g., the same steps are applied to
+			--   mask the data as to unmask the data.
+
+			--   Octet i of the transformed data ("transformed-octet-i") is the XOR of
+			--   octet i of the original data ("original-octet-i") with octet at index
+			--   i modulo 4 of the masking key ("masking-key-octet-j"):
+
+			--     j                   = i MOD 4
+			--     transformed-octet-i = original-octet-i XOR masking-key-octet-j
+
+			--   The payload length, indicated in the framing as frame-payload-length,
+			--   does NOT include the length of the masking key.  It is the length of
+			--   the "Payload data", e.g., the number of bytes following the masking
+			--   key.
+		note
+			EIS: "name=Masking","src=http://tools.ietf.org/html/rfc6455#section-5.3", "protocol=uri"
+		local
+			i,n: INTEGER
+		do
+--			debug ("ws")
+--				print ("append_chunk_unmasked (%"" + string_to_byte_representation (a_chunk) + "%",%N%Ta_pos=" + a_pos.out+ ", a_key, a_target #.count=" + a_target.count.out + ")%N")
+--			end
+			from
+				i := 1
+				n := a_chunk.count
+			until
+				i > n
+			loop
+				a_target.append_code (a_chunk.code (i).bit_xor (a_key [((i + (a_pos - 1) - 1) \\ 4) + 1].natural_32_code))
+				i := i + 1
+			end
 		end
 
 feature -- Output

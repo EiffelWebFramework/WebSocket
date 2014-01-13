@@ -100,6 +100,12 @@ feature -- Input
 			end
 		end
 
+	bytes_read: INTEGER
+		do
+			if attached socket as l_socket then
+				Result := l_socket.bytes_read
+			end
+		end
 feature -- Output
 
 	put_string (s: STRING)

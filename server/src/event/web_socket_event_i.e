@@ -88,7 +88,7 @@ feature {NONE} -- Implementation
 			l_header_message.append_code ((0x80 | a_opcode).to_natural_32)
 			l_message_count := a_message.count
 			n := l_message_count.to_natural_64
-			if l_message_count >= 0xffff then
+			if l_message_count > 0xffff then
 					--! Improve. this code needs to be checked.
 				l_header_message.append_code ((0 | 127).to_natural_32)
 				l_header_message.append_character ((n |>> 56).to_character_8)
