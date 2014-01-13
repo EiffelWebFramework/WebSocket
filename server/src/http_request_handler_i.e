@@ -279,7 +279,7 @@ feature -- WebSockets
 				from
 					is_data_frame_ok := True
 				until
-					l_fin or not is_data_frame_ok -- or is_incomplete_data
+					l_fin or not is_data_frame_ok
 				loop
 						-- multi-frames or continue is only valid for Binary or Text
 					a_socket.read_stream (1)
@@ -379,8 +379,7 @@ feature -- WebSockets
 											-- the following 8 bytes interpreted as a 64-bit unsigned integer
 											-- (the most significant bit MUST be 0) are the payload length.
 	      									-- Multibyte length quantities are expressed in network byte order.
-										a_socket.read_stream (8) -- 64 bits
-										s := a_socket.last_string
+	      								s := next_bytes (a_socket, 8) -- 64 bits
 										debug ("ws")
 											print ("   extended payload length=" + string_to_byte_representation (s))
 											io.put_new_line
@@ -398,8 +397,7 @@ feature -- WebSockets
 											l_payload_len := l_payload_len | (s[1].natural_32_code.to_natural_64 |<< 56)
 										end
 									elseif l_len = 126 then
-										a_socket.read_stream (2) -- 16 bits
-										s := a_socket.last_string
+										s := next_bytes (a_socket, 2) -- 16 bits
 										debug ("ws")
 											print ("   extended payload length bits=" + string_to_byte_representation (s))
 											io.put_new_line
@@ -420,13 +418,15 @@ feature -- WebSockets
 
 									if Result.is_valid then
 										if l_has_mask then
-											a_socket.read_stream (4)
-											l_masking_key := a_socket.last_string
+											l_masking_key := next_bytes (a_socket, 4) -- 32 bits
 											debug ("ws")
 												print ("   Masking key bits=" + string_to_byte_representation (l_masking_key))
 												io.put_new_line
 											end
 											if l_masking_key.count < 4 then
+												debug ("ws")
+													print ("masking-key read stream -> "+ a_socket.bytes_read.out + " bits%N")
+												end
 												Result.report_error (Invalid_data, "Incomplete data for Masking-key")
 												l_masking_key := Void
 											end
@@ -704,6 +704,31 @@ feature -- Parsing
 			loop
 				Result.append_character (l_digest [index].to_character_8)
 				index := index + 1
+			end
+		end
+
+feature {NONE} -- Socket helpers
+
+	next_bytes (a_socket: WS_STREAM_SOCKET; nb: INTEGER): STRING
+		local
+			n,l_bytes_read: INTEGER
+		do
+			create Result.make (nb)
+			if nb > 0 then
+				from
+					n := nb
+				until
+					n = 0
+				loop
+					a_socket.read_stream (nb)
+					l_bytes_read := a_socket.bytes_read
+					if l_bytes_read > 0 then
+						Result.append (a_socket.last_string)
+						n := n - l_bytes_read
+					else
+						n := 0
+					end
+				end
 			end
 		end
 
