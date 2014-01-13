@@ -182,7 +182,7 @@ feature -- Execution
 								elseif l_frame.is_binary then
  									on_event (l_socket, l_client_message, l_frame.opcode)
  								elseif l_frame.is_text then
-	 								check l_utf.is_valid_utf_8_string_8 (l_client_message) end
+	 								check is_valid_utf_8: l_utf.is_valid_utf_8_string_8 (l_client_message) end
 	 								on_event (l_socket, l_client_message, l_frame.opcode)
 	 							else
 	 								on_event (l_socket, l_client_message, l_frame.opcode)
@@ -825,7 +825,9 @@ feature -- Output
 			if attached logger as l_logger then
 				separate_log (m, l_logger)
 			else
-				io.put_string (m + "%N")
+				debug ("ws")
+					io.put_string (m + "%N")
+				end
 			end
 		end
 

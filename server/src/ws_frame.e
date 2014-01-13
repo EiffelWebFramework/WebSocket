@@ -248,10 +248,10 @@ feature {NONE} -- Helper
 			i: like {STRING_8}.count
 			n: like {STRING_8}.count
 			c,w: NATURAL_32
---			utf: UTF_CONVERTER
+			utf: UTF_CONVERTER
 		do
-			Result := True
---			Result := utf.is_valid_utf_8_string_8 (s)
+--			Result := True
+			Result := utf.is_valid_utf_8_string_8 (s)
 				-- Following code also check that codepoint is between 0 and 0x10FFFF (as expected by spec, and tested by autobahn ws testsuite)
 			from
 				n := s.count
@@ -298,6 +298,8 @@ feature {NONE} -- Helper
 				end
 				Result := Result and w <= {NATURAL_32} 0x10FFFF
 			end
+		ensure
+			Result implies (create {UTF_CONVERTER}).is_valid_utf_8_string_8 (s)
 		end
 
 end
