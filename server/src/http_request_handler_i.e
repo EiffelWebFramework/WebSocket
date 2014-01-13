@@ -112,6 +112,11 @@ feature -- Execution
 					dbglog (generator + ".ENTER execute {" + l_socket.descriptor.out + "}")
 				end
 
+					-- Set socket mode as "blocking", this simplifies the code
+					-- and in protocol based communication, the number of bytes to read
+					-- is always known.
+				l_socket.set_blocking
+
 				from
 				until
 					 has_error or else exit
@@ -248,6 +253,8 @@ feature -- WebSockets
 			--     +---------------------------------------------------------------+			
 		note
 			EIS: "name=WebSocket RFC", "protocol=URI", "src=http://tools.ietf.org/html/rfc6455#section-5.2"
+		require
+			a_socket_in_blocking_mode: a_socket.is_blocking
 		local
 			l_opcode: INTEGER
 			l_len: INTEGER
@@ -710,24 +717,24 @@ feature -- Parsing
 feature {NONE} -- Socket helpers
 
 	next_bytes (a_socket: WS_STREAM_SOCKET; nb: INTEGER): STRING
+		require
+			nb > 0
 		local
 			n,l_bytes_read: INTEGER
 		do
 			create Result.make (nb)
-			if nb > 0 then
-				from
-					n := nb
-				until
-					n = 0
-				loop
-					a_socket.read_stream (nb)
-					l_bytes_read := a_socket.bytes_read
-					if l_bytes_read > 0 then
-						Result.append (a_socket.last_string)
-						n := n - l_bytes_read
-					else
-						n := 0
-					end
+			from
+				n := nb
+			until
+				n = 0
+			loop
+				a_socket.read_stream (nb)
+				l_bytes_read := a_socket.bytes_read
+				if l_bytes_read > 0 then
+					Result.append (a_socket.last_string)
+					n := n - l_bytes_read
+				else
+					n := 0
 				end
 			end
 		end

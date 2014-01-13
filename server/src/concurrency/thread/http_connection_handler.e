@@ -57,8 +57,6 @@ feature {HTTP_SERVER} -- Execution
 		end
 
 	process_incoming_connection (a_socket: WS_STREAM_SOCKET)
-		local
-			h: HTTP_REQUEST_HANDLER
 		do
 			debug ("dbglog")
 				dbglog (generator + ".before process_incoming_connection {"+ a_socket.descriptor.out +"} -- SCOOP WAIT!")

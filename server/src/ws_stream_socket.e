@@ -106,6 +106,7 @@ feature -- Input
 				Result := l_socket.bytes_read
 			end
 		end
+
 feature -- Output
 
 	put_string (s: STRING)
@@ -139,6 +140,15 @@ feature -- Status Report
 				Result := l_ssl_socket.port
 			elseif attached {TCP_STREAM_SOCKET} socket as l_socket then
 				Result := l_socket.port
+			end
+		end
+
+	is_blocking: BOOLEAN
+		do
+			if attached {TCP_STREAM_SOCKET} socket as l_socket then
+				Result := l_socket.is_blocking
+			elseif attached {SSL_TCP_STREAM_SOCKET} socket as l_ssl_socket then
+				Result := l_ssl_socket.is_blocking
 			end
 		end
 
@@ -226,6 +236,15 @@ feature -- Status Report
 				l_socket.set_blocking
 			elseif attached {SSL_TCP_STREAM_SOCKET} socket as l_ssl_socket then
 				l_ssl_socket.set_blocking
+			end
+		end
+
+	set_non_blocking
+		do
+			if attached {TCP_STREAM_SOCKET} socket as l_socket then
+				l_socket.set_non_blocking
+			elseif attached {SSL_TCP_STREAM_SOCKET} socket as l_ssl_socket then
+				l_ssl_socket.set_non_blocking
 			end
 		end
 
