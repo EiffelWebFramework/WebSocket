@@ -135,8 +135,7 @@ feature {NONE} -- Implementation
 				print ("Sending chunk done%N")
 			end
 		rescue
-			io.put_string ("Press [ENTER] to continue")
-			io.read_line
+			io.put_string ("Internal error in " + generator + ".do_send (conn, a_opcode=" + a_opcode.out + ", a_message) !%N")
 		end
 
 end
