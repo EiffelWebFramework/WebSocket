@@ -309,10 +309,7 @@ feature -- WebSockets
 
 						if Result /= Void then
 							if l_opcode = Result.opcode then
-								check
-										-- should not occur in multi-fragment frame!
-									should_not_occur: False
-								end
+									-- should not occur in multi-fragment frame!
 								Result.report_error (protocol_error, "Unexpected frame")
 							elseif l_opcode = continuation_frame then
 									-- Expected
@@ -323,10 +320,7 @@ feature -- WebSockets
 									-- CLOSE, PING, PONG
 								create Result.make_as_injected_control (l_opcode, Result)
 							else
-								check
-										-- should not occur in multi-fragment frame!
-									should_not_occur: False
-								end
+									-- should not occur in multi-fragment frame!
 								Result.report_error (protocol_error, "Unexpected frame")
 							end
 						else
