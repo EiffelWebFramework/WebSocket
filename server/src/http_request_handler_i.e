@@ -176,10 +176,8 @@ feature -- Execution
                       				exit := True
 								elseif l_frame.is_binary then
  									on_event (l_socket, l_client_message, l_frame.opcode)
- 								elseif
- 									l_frame.is_text and then
-	 								l_utf.is_valid_utf_8_string_8 (l_client_message)
-	 							then
+ 								elseif l_frame.is_text then
+	 								check l_utf.is_valid_utf_8_string_8 (l_client_message) end
 	 								on_event (l_socket, l_client_message, l_frame.opcode)
 	 							else
 	 								on_event (l_socket, l_client_message, l_frame.opcode)
@@ -476,11 +474,27 @@ feature -- WebSockets
 											end
 										end
 										log ("%N" + s.count.out + " out of " + l_len.out + " received <===============")
+
 --										if l_masking_key /= Void then
 --											s := unmask (s, l_masking_key)
 --										end
-										if Result.is_text then
-											log (s.head (50) + "..")
+										debug ("ws")
+											print (" -> ")
+											if s.count > 50 then
+												print (string_to_byte_hexa_representation (s.head (50) + ".."))
+											else
+												print (string_to_byte_hexa_representation (s))
+											end
+											print ("%N")
+											if Result.is_text then
+												print (" -> ")
+												if s.count > 50 then
+													print (s.head (50) + "..")
+												else
+													print (s)
+												end
+												print ("%N")
+											end
 										end
 										Result.append_payload_data_fragment (s, l_payload_len)
 									end
@@ -817,6 +831,33 @@ feature {NONE} -- Debug
 						Result.append_character (':')
 					end
 					Result.append (to_byte_representation (s[i].code))
+					i := i + 1
+				end
+			end
+		end
+
+	string_to_byte_hexa_representation (s: STRING): STRING
+		require
+			valid: s.count > 0
+		local
+			i, n: INTEGER
+			c: INTEGER
+		do
+			n := s.count
+			create Result.make (8 * n)
+			if n > 0 then
+				from
+					i := 1
+				until
+					i > n
+				loop
+					if not Result.is_empty then
+						Result.append_character (':')
+					end
+					c := s[i].code
+					check c < 0xFF end
+					Result.append_character (((c |>> 4) & 0xF).to_hex_character)
+					Result.append_character (((c) & 0xF).to_hex_character)
 					i := i + 1
 				end
 			end

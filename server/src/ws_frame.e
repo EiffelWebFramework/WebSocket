@@ -19,7 +19,7 @@ note
 				     :                     Payload Data continued ...                :
 				     + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 				     |                     Payload Data continued ...                |
-				     +---------------------------------------------------------------+			
+				     +---------------------------------------------------------------+
 			]"
 	date: "$Date$"
 	revision: "$Revision$"
@@ -205,15 +205,19 @@ feature -- Change
 		end
 
 	append_payload_data_fragment (a_data: STRING_8; a_len: NATURAL_64)
-		local
 		do
 			fragment_count := fragment_count + 1
-			if attached payload_data as d then
-				d.append (a_data)
+			if is_text and then not is_valid_text_payload_data_fragment (a_data) then
+				report_error (invalid_data, "The payload is not valid UTF-8!")
+					-- the connection should then be closed!
 			else
-				payload_data := a_data
+				if attached payload_data as d then
+					d.append (a_data)
+				else
+					payload_data := a_data
+				end
+				payload_length := payload_length + a_len
 			end
-			payload_length := payload_length + a_len
 		end
 
 	report_error (a_code: INTEGER; a_description: READABLE_STRING_8)
@@ -224,6 +228,76 @@ feature -- Change
 		ensure
 			has_error: has_error
 			is_not_valid: not is_valid
+		end
+
+feature {NONE} -- Helper
+
+	is_valid_text_payload_data_fragment (s: READABLE_STRING_8): BOOLEAN
+		require
+			is_text_frame: is_text
+		do
+			if not is_text then
+				Result := True
+			else
+				Result := is_valid_utf_8_string_8 (s)
+			end
+		end
+
+	is_valid_utf_8_string_8 (s: READABLE_STRING_8): BOOLEAN
+		local
+			i: like {STRING_8}.count
+			n: like {STRING_8}.count
+			c,w: NATURAL_32
+--			utf: UTF_CONVERTER
+		do
+			Result := True
+--			Result := utf.is_valid_utf_8_string_8 (s)
+				-- Following code also check that codepoint is between 0 and 0x10FFFF (as expected by spec, and tested by autobahn ws testsuite)
+			from
+				n := s.count
+			until
+				i >= n or not Result
+			loop
+				i := i + 1
+				c := s.code (i)
+				if c <= 0x7F then
+						-- 0xxxxxxx
+					w := c
+				elseif c <= 0xDF then
+						-- 110xxxxx 10xxxxxx
+					i := i + 1
+					if i <= n then
+						w := (
+							((c & 0x1F) |<< 6) |
+							(s.code (i) & 0x3F)
+						)
+					end
+				elseif c <= 0xEF then
+						-- 1110xxxx 10xxxxxx 10xxxxxx
+					i := i + 2
+					if i <= n then
+						w := (
+							((c & 0xF) |<< 12) |
+							((s.code (i - 1) & 0x3F) |<< 6) |
+							(s.code (i) & 0x3F)
+						)
+					end
+				elseif c <= 0xF7 then
+						-- 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+					i := i + 3
+					if i <= n then
+						w := (
+							((c & 0x7) |<< 18) |
+							((s.code (i - 2) & 0x3F) |<< 12) |
+							((s.code (i - 1) & 0x3F) |<< 6) |
+							(s.code (i) & 0x3F)
+						)
+					end
+				else
+					Result := False
+				end
+				Result := Result and w <= {NATURAL_32} 0x10FFFF
+			end
 		end
 
 end
