@@ -62,8 +62,16 @@ feature -- Web Socket Interface
 		require
 			conn_attached: conn /= Void
 			conn_valid: conn.is_open_read and then conn.is_open_write
+		local
+			retried: BOOLEAN
 		do
-			conn.send_message (close_message)
+			if not retried then
+				conn.send_message (close_message)
+			end
+		rescue
+			retried := True
+			print ("Internal error: on_close!%N")
+			retry
 		end
 
 	close_message: STRING
