@@ -269,258 +269,267 @@ feature -- WebSockets
 --			is_incomplete_data: BOOLEAN
 --			is_binary: BOOLEAN
 --					-- Is the type of the message binary?				
+			retried: BOOLEAN
 		do
-			debug ("ws")
-				print ("next_frame:%N")
-			end
+			if not retried then
+				debug ("ws")
+					print ("next_frame:%N")
+				end
 
-			from
-				is_data_frame_ok := True
-			until
-				l_fin or not is_data_frame_ok -- or is_incomplete_data
-			loop
-					-- multi-frames or continue is only valid for Binary or Text
-				a_socket.read_stream (1)
-				s := a_socket.last_string
-				if s.is_empty then
-					is_data_frame_ok := False
-					debug ("ws")
-						print ("[ERROR] incomplete_data!%N")
-					end
-				else
-					l_byte := s[1].code
-					debug ("ws")
-						print ("   fin,rsv(3),opcode(4)=")
-						print (to_byte_representation (l_byte))
-						print ("%N")
-					end
-					l_fin := l_byte & (0b10000000) /= 0
-					l_rsv := l_byte & (0b01110000) = 0
-					l_opcode := l_byte & 0b00001111
-
-					if Result /= Void then
-						if l_opcode = Result.opcode then
-							check
-									-- should not occur in multi-fragment frame!
-								should_not_occur: False
-							end
-							Result.report_error (protocol_error, "Unexpected frame")
-						elseif l_opcode = continuation_frame then
-								-- Expected
-						elseif is_control_frame (l_opcode) then
-								-- Control frames (see Section 5.5) MAY be injected in the middle of
-								-- a fragmented message.  Control frames themselves MUST NOT be fragmented.
-								-- if the l_opcode is a control frame then there is an error!!!
-								-- CLOSE, PING, PONG
-							create Result.make_as_injected_control (l_opcode, Result)
-						elseif l_opcode = connection_close_frame then
-								-- ??? what should we do here?
-						else
-							check
-									-- should not occur in multi-fragment frame!
-								should_not_occur: False
-							end
-							Result.report_error (protocol_error, "Unexpected frame")
+				from
+					is_data_frame_ok := True
+				until
+					l_fin or not is_data_frame_ok -- or is_incomplete_data
+				loop
+						-- multi-frames or continue is only valid for Binary or Text
+					a_socket.read_stream (1)
+					s := a_socket.last_string
+					if s.is_empty then
+						is_data_frame_ok := False
+						debug ("ws")
+							print ("[ERROR] incomplete_data!%N")
 						end
 					else
-						create Result.make (l_opcode, l_fin)
-					end
-
-					log ("%NStandard Action:" + opcode_name (l_opcode))
-
-					if Result.is_valid then
-							--| valid frame/fragment
-
-							-- rsv validation
-						if not l_rsv then
-								-- RSV1, RSV2, RSV3:  1 bit each
-
-								-- MUST be 0 unless an extension is negotiated that defines meanings
-								-- for non-zero values.  If a nonzero value is received and none of
-								-- the negotiated extensions defines the meaning of such a nonzero
-								-- value, the receiving endpoint MUST _Fail the WebSocket
-								-- Connection_
-
-								-- FIXME: add support for extension ?
-							Result.report_error (protocol_error, "RSV values MUST be 0 unless an extension is negotiated that defines meanings for non-zero values")
+						l_byte := s[1].code
+						debug ("ws")
+							print ("   fin,rsv(3),opcode(4)=")
+							print (to_byte_representation (l_byte))
+							print ("%N")
 						end
-					end
+						l_fin := l_byte & (0b10000000) /= 0
+						l_rsv := l_byte & (0b01110000) = 0
+						l_opcode := l_byte & 0b00001111
 
-						-- At the moment only TEXT, (pending Binary)
-					if Result.is_valid then
-						if Result.is_text or Result.is_binary or Result.is_control then
-									-- Reading next byte (mask+payload_len)
-							a_socket.read_stream (1)
-							s := a_socket.last_string
-							if s.is_empty then
-								Result.report_error (invalid_data, "Incomplete data for mask and payload len")
+						if Result /= Void then
+							if l_opcode = Result.opcode then
+								check
+										-- should not occur in multi-fragment frame!
+									should_not_occur: False
+								end
+								Result.report_error (protocol_error, "Unexpected frame")
+							elseif l_opcode = continuation_frame then
+									-- Expected
+							elseif is_control_frame (l_opcode) then
+									-- Control frames (see Section 5.5) MAY be injected in the middle of
+									-- a fragmented message.  Control frames themselves MUST NOT be fragmented.
+									-- if the l_opcode is a control frame then there is an error!!!
+									-- CLOSE, PING, PONG
+								create Result.make_as_injected_control (l_opcode, Result)
+							elseif l_opcode = connection_close_frame then
+									-- ??? what should we do here?
 							else
-								l_byte := s[1].code
-								debug ("ws")
-									print ("   mask,payload_len(7)=")
-									print (to_byte_representation (l_byte))
-									io.put_new_line
+								check
+										-- should not occur in multi-fragment frame!
+									should_not_occur: False
 								end
-								l_has_mask :=  l_byte & (0b10000000) /= 0 -- MASK
-								l_len := l_byte & 0b01111111 -- 7bits
+								Result.report_error (protocol_error, "Unexpected frame")
+							end
+						else
+							create Result.make (l_opcode, l_fin)
+						end
 
-								debug ("ws")
-									print ("   payload_len=" + l_len.out)
-									io.put_new_line
-								end
+						log ("%NStandard Action:" + opcode_name (l_opcode))
 
-								if Result.is_control and then l_len > 125 then
-										-- All control frames MUST have a payload length of 125 bytes or less
-   										-- and MUST NOT be fragmented.
-									Result.report_error (protocol_error, "Control frame MUST have a payload length of 125 bytes or less")
-								elseif l_len = 127 then  -- TODO proof of concept read 8 bytes.
-										-- the following 8 bytes interpreted as a 64-bit unsigned integer
-										-- (the most significant bit MUST be 0) are the payload length.
-      									-- Multibyte length quantities are expressed in network byte order.
-									a_socket.read_stream (8) -- 64 bits
-									s := a_socket.last_string
-									debug ("ws")
-										print ("   extended payload length=" + string_to_byte_representation (s))
-										io.put_new_line
-									end
-									if s.count < 8 then
-										Result.report_error (Invalid_data, "Incomplete data for 64 bit Extended payload length")
-									else
-										l_payload_len := s[8].natural_32_code.to_natural_64
-										l_payload_len := l_payload_len | (s[7].natural_32_code.to_natural_64 |<< 8)
-										l_payload_len := l_payload_len | (s[6].natural_32_code.to_natural_64 |<< 16)
-										l_payload_len := l_payload_len | (s[5].natural_32_code.to_natural_64 |<< 24)
-										l_payload_len := l_payload_len | (s[4].natural_32_code.to_natural_64 |<< 32)
-										l_payload_len := l_payload_len | (s[3].natural_32_code.to_natural_64 |<< 40)
-										l_payload_len := l_payload_len | (s[2].natural_32_code.to_natural_64 |<< 48)
-										l_payload_len := l_payload_len | (s[1].natural_32_code.to_natural_64 |<< 56)
-									end
-								elseif l_len = 126 then
-									a_socket.read_stream (2) -- 16 bits
-									s := a_socket.last_string
-									debug ("ws")
-										print ("   extended payload length bits=" + string_to_byte_representation (s))
-										io.put_new_line
-									end
-									if s.count < 2 then
-										Result.report_error (Invalid_data, "Incomplete data for 16 bit Extended payload length")
-									else
-										l_payload_len := s[2].natural_32_code.to_natural_64
-										l_payload_len := l_payload_len | (s[1].natural_32_code.to_natural_64 |<< 8)
-									end
+						if Result.is_valid then
+								--| valid frame/fragment
+
+								-- rsv validation
+							if not l_rsv then
+									-- RSV1, RSV2, RSV3:  1 bit each
+
+									-- MUST be 0 unless an extension is negotiated that defines meanings
+									-- for non-zero values.  If a nonzero value is received and none of
+									-- the negotiated extensions defines the meaning of such a nonzero
+									-- value, the receiving endpoint MUST _Fail the WebSocket
+									-- Connection_
+
+									-- FIXME: add support for extension ?
+								Result.report_error (protocol_error, "RSV values MUST be 0 unless an extension is negotiated that defines meanings for non-zero values")
+							end
+						end
+
+							-- At the moment only TEXT, (pending Binary)
+						if Result.is_valid then
+							if Result.is_text or Result.is_binary or Result.is_control then
+										-- Reading next byte (mask+payload_len)
+								a_socket.read_stream (1)
+								s := a_socket.last_string
+								if s.is_empty then
+									Result.report_error (invalid_data, "Incomplete data for mask and payload len")
 								else
-									l_payload_len := l_len.to_natural_64
-								end
-								debug ("ws")
-									print ("   Full payload length=" + l_payload_len.out)
-									io.put_new_line
-								end
+									l_byte := s[1].code
+									debug ("ws")
+										print ("   mask,payload_len(7)=")
+										print (to_byte_representation (l_byte))
+										io.put_new_line
+									end
+									l_has_mask :=  l_byte & (0b10000000) /= 0 -- MASK
+									l_len := l_byte & 0b01111111 -- 7bits
 
-								if Result.is_valid then
-									if l_has_mask then
-										a_socket.read_stream (4)
-										l_masking_key := a_socket.last_string
+									debug ("ws")
+										print ("   payload_len=" + l_len.out)
+										io.put_new_line
+									end
+
+									if Result.is_control and then l_len > 125 then
+											-- All control frames MUST have a payload length of 125 bytes or less
+	   										-- and MUST NOT be fragmented.
+										Result.report_error (protocol_error, "Control frame MUST have a payload length of 125 bytes or less")
+									elseif l_len = 127 then  -- TODO proof of concept read 8 bytes.
+											-- the following 8 bytes interpreted as a 64-bit unsigned integer
+											-- (the most significant bit MUST be 0) are the payload length.
+	      									-- Multibyte length quantities are expressed in network byte order.
+										a_socket.read_stream (8) -- 64 bits
+										s := a_socket.last_string
 										debug ("ws")
-											print ("   Masking key bits=" + string_to_byte_representation (l_masking_key))
+											print ("   extended payload length=" + string_to_byte_representation (s))
 											io.put_new_line
 										end
-										if l_masking_key.count < 4 then
-											Result.report_error (Invalid_data, "Incomplete data for Masking-key")
-											l_masking_key := Void
+										if s.count < 8 then
+											Result.report_error (Invalid_data, "Incomplete data for 64 bit Extended payload length")
+										else
+											l_payload_len := s[8].natural_32_code.to_natural_64
+											l_payload_len := l_payload_len | (s[7].natural_32_code.to_natural_64 |<< 8)
+											l_payload_len := l_payload_len | (s[6].natural_32_code.to_natural_64 |<< 16)
+											l_payload_len := l_payload_len | (s[5].natural_32_code.to_natural_64 |<< 24)
+											l_payload_len := l_payload_len | (s[4].natural_32_code.to_natural_64 |<< 32)
+											l_payload_len := l_payload_len | (s[3].natural_32_code.to_natural_64 |<< 40)
+											l_payload_len := l_payload_len | (s[2].natural_32_code.to_natural_64 |<< 48)
+											l_payload_len := l_payload_len | (s[1].natural_32_code.to_natural_64 |<< 56)
+										end
+									elseif l_len = 126 then
+										a_socket.read_stream (2) -- 16 bits
+										s := a_socket.last_string
+										debug ("ws")
+											print ("   extended payload length bits=" + string_to_byte_representation (s))
+											io.put_new_line
+										end
+										if s.count < 2 then
+											Result.report_error (Invalid_data, "Incomplete data for 16 bit Extended payload length")
+										else
+											l_payload_len := s[2].natural_32_code.to_natural_64
+											l_payload_len := l_payload_len | (s[1].natural_32_code.to_natural_64 |<< 8)
 										end
 									else
-										Result.report_error (protocol_error, "All frames sent from client to server are masked!")
+										l_payload_len := l_len.to_natural_64
 									end
+									debug ("ws")
+										print ("   Full payload length=" + l_payload_len.out)
+										io.put_new_line
+									end
+
 									if Result.is_valid then
-										l_chunk_size := 0x4000 -- 16 K
-										if l_payload_len > {INTEGER_32}.max_value.to_natural_64 then
-												-- Issue .. to big to store in STRING
-												-- FIXME !!!
-											Result.report_error (Message_too_large, "Can not handle payload data (len=" + l_payload_len.out + ")")
-										else
-											l_len := l_payload_len.to_integer_32
-										end
-
---										if l_len < l_chunk_size then
---											l_chunk_size := l_len
---										end
-										from
-											create s.make (l_len)
-											l_remaining_len := l_len
-										until
-											s.count >= l_len or l_len = 0 or not Result.is_valid
-										loop
-											if l_remaining_len < l_chunk_size then
-												l_chunk_size := l_remaining_len
-											end
-											a_socket.read_stream (l_chunk_size)
+										if l_has_mask then
+											a_socket.read_stream (4)
+											l_masking_key := a_socket.last_string
 											debug ("ws")
-												print ("read chunk size=" + l_chunk_size.out + " s.count="+ s.count.out +" l_len="+l_len.out+" -> " + a_socket.bytes_read.out + "bytes%N")
+												print ("   Masking key bits=" + string_to_byte_representation (l_masking_key))
+												io.put_new_line
 											end
-											if a_socket.bytes_read > 0 then
-												l_remaining_len := l_remaining_len - a_socket.bytes_read
-
-												l_chunk := a_socket.last_string
-												if l_masking_key /= Void then
-														--  Masking
-														--  http://tools.ietf.org/html/rfc6455#section-5.3
-													append_chunk_unmasked (l_chunk, s.count + 1, l_masking_key, s)
-												else
-													s.append (l_chunk)
-													check client_frame_should_always_be_encoded: False end
-												end
-											else
-												Result.report_error (internal_error, "Issue reading payload data...")
+											if l_masking_key.count < 4 then
+												Result.report_error (Invalid_data, "Incomplete data for Masking-key")
+												l_masking_key := Void
 											end
+										else
+											Result.report_error (protocol_error, "All frames sent from client to server are masked!")
 										end
-										log ("%N" + s.count.out + " out of " + l_len.out + " received <===============")
-
---										if l_masking_key /= Void then
---											s := unmask (s, l_masking_key)
---										end
-										debug ("ws")
-											print (" -> ")
-											if s.count > 50 then
-												print (string_to_byte_hexa_representation (s.head (50) + ".."))
+										if Result.is_valid then
+											l_chunk_size := 0x4000 -- 16 K
+											if l_payload_len > {INTEGER_32}.max_value.to_natural_64 then
+													-- Issue .. to big to store in STRING
+													-- FIXME !!!
+												Result.report_error (Message_too_large, "Can not handle payload data (len=" + l_payload_len.out + ")")
 											else
-												print (string_to_byte_hexa_representation (s))
+												l_len := l_payload_len.to_integer_32
 											end
-											print ("%N")
-											if Result.is_text then
+
+	--										if l_len < l_chunk_size then
+	--											l_chunk_size := l_len
+	--										end
+											from
+												create s.make (l_len)
+												l_remaining_len := l_len
+											until
+												s.count >= l_len or l_len = 0 or not Result.is_valid
+											loop
+												if l_remaining_len < l_chunk_size then
+													l_chunk_size := l_remaining_len
+												end
+												a_socket.read_stream (l_chunk_size)
+												debug ("ws")
+													print ("read chunk size=" + l_chunk_size.out + " s.count="+ s.count.out +" l_len="+l_len.out+" -> " + a_socket.bytes_read.out + "bytes%N")
+												end
+												if a_socket.bytes_read > 0 then
+													l_remaining_len := l_remaining_len - a_socket.bytes_read
+
+													l_chunk := a_socket.last_string
+													if l_masking_key /= Void then
+															--  Masking
+															--  http://tools.ietf.org/html/rfc6455#section-5.3
+														append_chunk_unmasked (l_chunk, s.count + 1, l_masking_key, s)
+													else
+														s.append (l_chunk)
+														check client_frame_should_always_be_encoded: False end
+													end
+												else
+													Result.report_error (internal_error, "Issue reading payload data...")
+												end
+											end
+											log ("%N" + s.count.out + " out of " + l_len.out + " received <===============")
+
+	--										if l_masking_key /= Void then
+	--											s := unmask (s, l_masking_key)
+	--										end
+											debug ("ws")
 												print (" -> ")
 												if s.count > 50 then
-													print (s.head (50) + "..")
+													print (string_to_byte_hexa_representation (s.head (50) + ".."))
 												else
-													print (s)
+													print (string_to_byte_hexa_representation (s))
 												end
 												print ("%N")
+												if Result.is_text then
+													print (" -> ")
+													if s.count > 50 then
+														print (s.head (50) + "..")
+													else
+														print (s)
+													end
+													print ("%N")
+												end
 											end
+											Result.append_payload_data_fragment (s, l_payload_len)
 										end
-										Result.append_payload_data_fragment (s, l_payload_len)
 									end
 								end
 							end
 						end
 					end
-				end
-				if Result /= Void then
-					if Result.is_injected_control and then attached Result.parent as l_parent then
+					if Result /= Void then
+						if Result.is_injected_control and then attached Result.parent as l_parent then
+							if not Result.is_valid then
+								l_parent.report_error (protocol_error, "Invalid injected frame")
+							end
+							if Result.is_connection_close then
+									-- Return this and process the connection close right away!
+							else
+								Result := l_parent
+							end
+						end
 						if not Result.is_valid then
-							l_parent.report_error (protocol_error, "Invalid injected frame")
+							is_data_frame_ok := False
 						end
-						if Result.is_connection_close then
-								-- Return this and process the connection close right away!
-						else
-							Result := l_parent
-						end
-					end
-					if not Result.is_valid then
+					else
 						is_data_frame_ok := False
 					end
-				else
-					is_data_frame_ok := False
 				end
 			end
+		rescue
+			retried := True
+			if Result /= Void then
+				Result.report_error (internal_error, "Internal error")
+			end
+			retry
 		end
 
 	opening_handshake (a_socket: WS_STREAM_SOCKET)
@@ -837,8 +846,6 @@ feature {NONE} -- Debug
 		end
 
 	string_to_byte_hexa_representation (s: STRING): STRING
-		require
-			valid: s.count > 0
 		local
 			i, n: INTEGER
 			c: INTEGER
@@ -855,7 +862,7 @@ feature {NONE} -- Debug
 						Result.append_character (':')
 					end
 					c := s[i].code
-					check c < 0xFF end
+					check c <= 0xFF end
 					Result.append_character (((c |>> 4) & 0xF).to_hex_character)
 					Result.append_character (((c) & 0xF).to_hex_character)
 					i := i + 1
