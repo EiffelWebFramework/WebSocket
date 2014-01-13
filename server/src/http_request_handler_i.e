@@ -322,9 +322,6 @@ feature -- WebSockets
 									-- if the l_opcode is a control frame then there is an error!!!
 									-- CLOSE, PING, PONG
 								create Result.make_as_injected_control (l_opcode, Result)
-								l_fin := False -- We read the control frame but we are in a multi-fragmented case
-							elseif l_opcode = connection_close_frame then
-									-- ??? what should we do here?
 							else
 								check
 										-- should not occur in multi-fragment frame!
@@ -451,9 +448,6 @@ feature -- WebSockets
 												l_len := l_payload_len.to_integer_32
 											end
 
-	--										if l_len < l_chunk_size then
-	--											l_chunk_size := l_len
-	--										end
 											from
 												create s.make (l_len)
 												l_remaining_len := l_len
@@ -485,9 +479,6 @@ feature -- WebSockets
 											end
 											log ("%N" + s.count.out + " out of " + l_len.out + " received <===============")
 
-	--										if l_masking_key /= Void then
-	--											s := unmask (s, l_masking_key)
-	--										end
 											debug ("ws")
 												print (" -> ")
 												if s.count > 50 then
@@ -514,14 +505,24 @@ feature -- WebSockets
 						end
 					end
 					if Result /= Void then
-						if Result.is_injected_control and then attached Result.parent as l_parent then
-							if not Result.is_valid then
-								l_parent.report_error (protocol_error, "Invalid injected frame")
-							end
-							if Result.is_connection_close then
-									-- Return this and process the connection close right away!
+						if Result.is_injected_control then
+							if attached Result.parent as l_parent then
+								if not Result.is_valid then
+									l_parent.report_error (protocol_error, "Invalid injected frame")
+								end
+								if Result.is_connection_close then
+										-- Return this and process the connection close right away!
+								else
+									Result := l_parent
+								end
+								l_fin := l_parent.is_fin
+								check
+									 	-- This is a control frame but occurs in fragmented frame.
+									inside_fragmented_frame: not l_fin
+								end
 							else
-								Result := l_parent
+								check has_parent: False end
+								l_fin := False -- This is a control frame but occurs in fragmented frame.
 							end
 						end
 						if not Result.is_valid then
@@ -603,8 +604,6 @@ feature -- WebSockets
 					-- For now a simple Bad Request!!!.
 			end
 		end
-
-
 
 feature -- Parsing
 
