@@ -494,7 +494,11 @@ feature -- WebSockets
 						if not Result.is_valid then
 							l_parent.report_error (protocol_error, "Invalid injected frame")
 						end
-						Result := l_parent
+						if Result.is_connection_close then
+								-- Return this and process the connection close right away!
+						else
+							Result := l_parent
+						end
 					end
 					if not Result.is_valid then
 						is_data_frame_ok := False
