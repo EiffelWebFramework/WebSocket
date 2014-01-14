@@ -512,13 +512,15 @@ feature -- WebSockets
 								end
 								if Result.is_connection_close then
 										-- Return this and process the connection close right away!
+									l_parent.update_fin (True)
+									l_fin := Result.is_fin
 								else
 									Result := l_parent
-								end
-								l_fin := l_parent.is_fin
-								check
-									 	-- This is a control frame but occurs in fragmented frame.
-									inside_fragmented_frame: not l_fin
+									l_fin := l_parent.is_fin
+									check
+										 	-- This is a control frame but occurs in fragmented frame.
+										inside_fragmented_frame: not l_fin
+									end
 								end
 							else
 								check has_parent: False end
