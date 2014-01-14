@@ -23,6 +23,7 @@ note
 			]"
 	date: "$Date$"
 	revision: "$Revision$"
+	EIS: "name=Websocket RFC6455 section-5.2", "protocol=URI", "src=http://tools.ietf.org/html/rfc6455#section-5.2", "tag=rfc"
 
 class
 	WS_FRAME
@@ -95,6 +96,15 @@ feature -- Access
 	payload_data: detachable STRING_8
  			-- Maybe we need a buffer here.
 
+ 	uncoded_payload_data: detachable STRING_32
+ 		local
+ 			utf: UTF_CONVERTER
+ 		do
+ 			if attached payload_data as d then
+ 				Result := utf.utf_8_string_8_to_string_32 (d)
+ 			end
+ 		end
+
 	error: detachable WS_ERROR_FRAME
 			-- Describe the type of error
 
@@ -117,23 +127,6 @@ feature -- Operation
 	update_fin (a_flag_is_fin: BOOLEAN)
 		do
 			is_fin := a_flag_is_fin
-		end
-
-	validate
-			-- Check current frame
-		do
-			if is_valid then
-				if is_text and is_fin then
-						-- Check the whole message is a valid UTF-8 string
-					if attached payload_data as d then
-						if not is_valid_utf_8_string (d) then
-							report_error (invalid_data, "The text message is not a valid UTF-8 text!")
-						end
-					else
-							-- empty payload??
-					end
-				end
-			end
 		end
 
 feature {WS_FRAME} -- Change: injected control frames 			
@@ -241,9 +234,21 @@ feature -- Change
 			payload_length := payload_length + a_len
 
 			if is_text then
-				if not is_valid_text_payload_stream then
-					report_error (invalid_data, "This is not a valid UTF-8 stream!")
-						-- is_valid implies the connection will be closed!
+				if is_fin then
+						-- Check the whole message is a valid UTF-8 string
+					if attached payload_data as d then
+						if not is_valid_utf_8_string (d) then
+							report_error (invalid_data, "The text message is not a valid UTF-8 text!")
+						end
+					else
+							-- empty payload??
+					end
+				else
+						-- Check the payload data as utf-8 stream (may be incomplete at this point)
+					if not is_valid_text_payload_stream then
+						report_error (invalid_data, "This is not a valid UTF-8 stream!")
+							-- is_valid implies the connection will be closed!
+					end
 				end
 			end
 		end
@@ -268,17 +273,20 @@ feature {NONE} -- Helper
 			is_text_frame: is_text
 		do
 			if attached payload_data as s then
-				Result := is_valid_utf_8 (s, True)
+				Result := is_valid_utf_8 (s, not is_fin)
 			end
 		end
 
 	is_valid_utf_8_string (s: READABLE_STRING_8): BOOLEAN
 		do
-			Result := (create {UTF_CONVERTER}).is_valid_utf_8_string_8 (s) and is_valid_utf_8 (s, False)
+			Result := is_valid_utf_8 (s, False)
+--					and (create {UTF_CONVERTER}).is_valid_utf_8_string_8 (s)
 		end
 
 	is_valid_utf_8 (s: READABLE_STRING_8; a_is_stream: BOOLEAN): BOOLEAN
-			-- Not that
+			-- UTF-8 validity checker.
+		note
+			EIS: "name=UTF-8 RFC3629", "protocol=URI", "src=https://tools.ietf.org/html/rfc3629", "tag=rfc"
 		require
 			is_text_frame: is_text
 		local
@@ -288,7 +296,6 @@ feature {NONE} -- Helper
 			l_is_incomplete_stream: BOOLEAN
 		do
 			Result := True
---				Result := (create {UTF_CONVERTER}).is_valid_utf_8_string_8 (s)
 				-- Following code also check that codepoint is between 0 and 0x10FFFF (as expected by spec, and tested by autobahn ws testsuite)
 			from
 				if a_is_stream then
@@ -305,14 +312,26 @@ feature {NONE} -- Helper
 				if c <= 0x7F then
 						-- 0xxxxxxx
 					w := c
+				elseif c = 0xC0 or c = 0xC1 then
+						-- The octet values C0, C1, F5 to FF never appear.
+					Result := False
 				elseif c <= 0xDF then
 						-- 110xxxxx 10xxxxxx
 					i := i + 1
 					if i <= n then
-						w := (
-							((c & 0x1F) |<< 6) |
-							(s.code (i) & 0x3F)
-						)
+						if
+							(c & 0xE0) = 0xC0 and
+							(s.code (i) & 0xC0) = 0x80
+						then
+							w :=  ((c & 0x1F) |<< 6)
+								|  (s.code (i) & 0x3F)
+							if 0x80 <= w and w <= 0x7FF then
+							else
+								Result := False
+							end
+						else
+							Result := False
+						end
 					else
 						l_is_incomplete_stream := True
 					end
@@ -320,24 +339,49 @@ feature {NONE} -- Helper
 						-- 1110xxxx 10xxxxxx 10xxxxxx
 					i := i + 2
 					if i <= n then
-						w := (
-							((c & 0xF) |<< 12) |
-							((s.code (i - 1) & 0x3F) |<< 6) |
-							(s.code (i) & 0x3F)
-						)
+						if
+							(c & 0xF0) = 0xE0 and
+							(s.code (i - 1) & 0xC0) = 0x80 and
+							(s.code (i) & 0xC0) = 0x80
+						then
+							w :=  ((c & 0xF) |<< 12)
+								| ((s.code (i - 1) & 0x3F) |<< 6)
+								| (s.code (i) & 0x3F)
+							if 0x800 <= w and w <= 0xFFFF then
+								if 0xD800 <= w and w <= 0xDFFF then
+										-- The definition of UTF-8 prohibits encoding character numbers between U+D800 and U+DFFF
+									Result := False
+								end
+							else
+								Result := False
+							end
+						else
+							Result := False
+						end
 					else
 						l_is_incomplete_stream := True
 					end
-				elseif c <= 0xF7 then
+				elseif c <= 0xF7 then -- 0001 0000-0010 FFFF
 						-- 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
 					i := i + 3
 					if i <= n then
-						w := (
-							((c & 0x7) |<< 18) |
-							((s.code (i - 2) & 0x3F) |<< 12) |
-							((s.code (i - 1) & 0x3F) |<< 6) |
-							(s.code (i) & 0x3F)
-						)
+						if
+							(c & 0xF8) = 0xF0 and
+							(s.code (i - 2) & 0xC0) = 0x80 and
+							(s.code (i - 1) & 0xC0) = 0x80 and
+							(s.code (i) & 0xC0) = 0x80
+						then
+							w := ((c & 0x7) |<< 18) |
+								 ((s.code (i - 2) & 0x3F) |<< 12) |
+								 ((s.code (i - 1) & 0x3F) |<< 6) |
+								 (s.code (i) & 0x3F)
+							if 0x1_0000 <= w and w <= 0x10_FFFF then
+							else
+								Result := False
+							end
+						else
+							Result := False
+						end
 					else
 						l_is_incomplete_stream := True
 					end
@@ -351,6 +395,7 @@ feature {NONE} -- Helper
 						if w > 0x10FFFF then
 							Result := False
 						elseif 0xD800 <= w and w <= 0xDFFF then
+								-- The definition of UTF-8 prohibits encoding character numbers between U+D800 and U+DFFF
 							Result := False
 						end
 					end

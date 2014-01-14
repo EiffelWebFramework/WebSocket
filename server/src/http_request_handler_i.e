@@ -524,8 +524,6 @@ feature -- WebSockets
 								check has_parent: False end
 								l_fin := False -- This is a control frame but occurs in fragmented frame.
 							end
-						else
-							Result.validate
 						end
 						if not Result.is_valid then
 							is_data_frame_ok := False
