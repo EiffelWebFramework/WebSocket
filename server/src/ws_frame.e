@@ -79,6 +79,9 @@ feature {NONE} -- Initialization
 		do
 			make (a_opcode, True)
 			parent := a_parent
+			if opcode = Connection_close_frame then
+				a_parent.mark_fin
+			end
 			a_parent.add_injected_control_frame (Current)
 		end
 
@@ -387,6 +390,12 @@ feature {NONE} -- Helper
 					end
 				end
 			end
+		end
+
+feature {WS_FRAME} -- Element Change
+	mark_fin
+		do
+			is_fin := True
 		end
 
 end

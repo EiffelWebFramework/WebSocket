@@ -518,7 +518,8 @@ feature -- WebSockets
 								l_fin := l_parent.is_fin
 								check
 									 	-- This is a control frame but occurs in fragmented frame.
-									inside_fragmented_frame: not l_fin
+									 	-- except a close control frame
+									inside_fragmented_frame: not l_fin or Result.is_connection_close
 								end
 							else
 								check has_parent: False end
