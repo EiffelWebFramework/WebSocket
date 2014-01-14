@@ -234,7 +234,7 @@ feature -- Change
 			fragment_count := fragment_count + 1
 		end
 
-	check_utf_8_validity_on_chop: BOOLEAN = True
+	check_utf_8_validity_on_chop: BOOLEAN = False
 			-- True: check for each chop
 			-- False: check only for each fragment
 			--| see autobahntestsuite #6.4.3 and #6.4.4
