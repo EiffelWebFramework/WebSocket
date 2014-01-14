@@ -292,11 +292,12 @@ feature {NONE} -- Helper
 		local
 			i: like {STRING_8}.count
 			n: like {STRING_8}.count
-			c,w: NATURAL_32
+			c,c2,c3,c4,w: NATURAL_32
 			l_is_incomplete_stream: BOOLEAN
 		do
 			Result := True
-				-- Following code also check that codepoint is between 0 and 0x10FFFF (as expected by spec, and tested by autobahn ws testsuite)
+				-- Following code also check that codepoint is between 0 and 0x10FFFF
+				-- (as expected by spec, and tested by autobahn ws testsuite)
 			from
 				if a_is_stream then
 					i := last_utf_8_stream_validation_position -- to avoid recomputing from the beginning each time.
@@ -312,18 +313,20 @@ feature {NONE} -- Helper
 				if c <= 0x7F then
 						-- 0xxxxxxx
 					w := c
---				elseif c = 0xC0 or c = 0xC1 then
---						-- The octet values C0, C1, F5 to FF never appear.
---					Result := False
+				elseif c <= 0xC1 then
+						-- The octet values C0, C1, F5 to FF never appear.
+						--| case 0xC0 and 0xC1
+					Result := False
 				elseif (c & 0xE0) = 0xC0 then
 						-- 110xxxxx 10xxxxxx
 					i := i + 1
 					if i <= n then
+						c2 := s.code (i)
 						if
-							(s.code (i) & 0xC0) = 0x80
+							(c2 & 0xC0) = 0x80
 						then
 							w :=  ((c & 0x1F) |<< 6)
-								|  (s.code (i) & 0x3F)
+								|  (c2 & 0x3F)
 							Result := 0x80 <= w and w <= 0x7FF
 						else
 							Result := False
@@ -335,13 +338,15 @@ feature {NONE} -- Helper
 						-- 1110xxxx 10xxxxxx 10xxxxxx
 					i := i + 2
 					if i <= n then
+						c2 := s.code (i - 1)
+						c3 := s.code (i)
 						if
-							(s.code (i - 1) & 0xC0) = 0x80 and
-							(s.code (i) & 0xC0) = 0x80
+							(c2 & 0xC0) = 0x80 and
+							(c3 & 0xC0) = 0x80
 						then
 							w :=  ((c & 0xF) |<< 12)
-								| ((s.code (i - 1) & 0x3F) |<< 6)
-								| (s.code (i) & 0x3F)
+								| ((c2 & 0x3F) |<< 6)
+								| (c3 & 0x3F)
 							if 0x800 <= w and w <= 0xFFFF then
 								if 0xD800 <= w and w <= 0xDFFF then
 										-- The definition of UTF-8 prohibits encoding character numbers between U+D800 and U+DFFF
@@ -354,29 +359,55 @@ feature {NONE} -- Helper
 							Result := False
 						end
 					else
+						if i - 1 <= n then
+							Result := (s.code (i - 1) & 0xC0) = 0x80
+						end
 						l_is_incomplete_stream := True
 					end
 				elseif (c & 0xF8) = 0xF0 then -- 0001 0000-0010 FFFF
 						-- 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-					i := i + 3
-					if i <= n then
-						if
-							(s.code (i - 2) & 0xC0) = 0x80 and
-							(s.code (i - 1) & 0xC0) = 0x80 and
-							(s.code (i) & 0xC0) = 0x80
-						then
-							w := ((c & 0x7) |<< 18) |
-								 ((s.code (i - 2) & 0x3F) |<< 12) |
-								 ((s.code (i - 1) & 0x3F) |<< 6) |
-								 (s.code (i) & 0x3F)
-							Result := 0x1_0000 <= w and w <= 0x10_FFFF
-						else
-							Result := False
-						end
+					if 0xF5 <= c and c <= 0xFF then
+							-- The octet values C0, C1, F5 to FF never appear.
+						Result := False
 					else
-						l_is_incomplete_stream := True
+						i := i + 3
+						if i <= n then
+							c2 := s.code (i - 2)
+							c3 := s.code (i - 1)
+							c4 := s.code (i)
+							if
+								(c2 & 0xC0) = 0x80 and
+								(c3 & 0xC0) = 0x80 and
+								(c4 & 0xC0) = 0x80
+							then
+								w := ((c & 0x7) |<< 18) |
+									 ((c2 & 0x3F) |<< 12) |
+									 ((c3 & 0x3F) |<< 6) |
+									 (c4 & 0x3F)
+								Result := 0x1_0000 <= w and w <= 0x10_FFFF
+							else
+								Result := False
+							end
+						else
+							if i - 2 <= n then
+								c2 := s.code (i - 2)
+								Result := (c2 & 0xC0) = 0x80
+								if Result then
+									if c = 0xF4 and c2 >= 0x90 then
+											--| any byte 10xxxxxx (i.e >= 0x80) that would come after,
+											-- will result in out of range code point
+											-- indeed 0xF4 0x90 0x80 0x80 = 0x1100 0000 > 0x10_FFFF
+										Result := False
+									elseif i - 1 <= n then
+										Result := (s.code (i - 1) & 0xC0) = 0x80
+									end
+								end
+							end
+							l_is_incomplete_stream := True
+						end
 					end
 				else
+						-- Invalid byte in UTF-8
 					Result := False
 				end
 				if Result then
