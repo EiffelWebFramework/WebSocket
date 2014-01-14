@@ -17,7 +17,7 @@ inherit
 
 feature -- Change
 
-	set_client_socket (a_socket: separate TCP_STREAM_SOCKET)
+	set_client_socket (a_socket: separate WS_STREAM_SOCKET)
 		do
 			client_socket := a_socket
 		end

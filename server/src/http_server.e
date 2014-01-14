@@ -127,7 +127,7 @@ feature -- Listening
 			-- `a_server': The main server object
 		local
 			l_listening_socket,
-			l_accepted_socket: detachable TCP_STREAM_SOCKET
+			l_accepted_socket: detachable WS_STREAM_SOCKET
 			l_http_port: INTEGER
 			l_connection_handler: HTTP_CONNECTION_HANDLER
 		do
@@ -140,9 +140,17 @@ feature -- Listening
 				attached configuration.http_server_name as l_servername and then
 				attached (create {INET_ADDRESS_FACTORY}).create_from_name (l_servername) as l_addr
 			then
-				create l_listening_socket.make_server_by_address_and_port (l_addr, l_http_port)
+				if configuration.is_secure then
+					create l_listening_socket.make_ssl_server_by_address_and_port (l_addr, l_http_port, configuration.ssl_protocol, configuration.ca_crt, configuration.ca_key)
+				else
+					create l_listening_socket.make_server_by_address_and_port (l_addr, l_http_port)
+				end
 			else
-				create l_listening_socket.make_server_by_port (l_http_port)
+				if configuration.is_secure then
+					create l_listening_socket.make_ssl_server_by_port (l_http_port,configuration.ssl_protocol, configuration.ca_crt, configuration.ca_key)
+				else
+					create l_listening_socket.make_server_by_port (l_http_port)
+				end
 			end
 
 			if not l_listening_socket.is_bound then
@@ -154,7 +162,9 @@ feature -- Listening
 				create l_connection_handler.make (Current)
 				from
 					l_listening_socket.listen (configuration.max_tcp_clients)
-					if is_verbose then
+					if is_verbose and then configuration.is_secure then
+						log ("%NHTTP Connection Server ready on port " + l_http_port.out +" : https://localhost:" + l_http_port.out + "/")
+					elseif is_verbose then
 						log ("%NHTTP Connection Server ready on port " + l_http_port.out +" : http://localhost:" + l_http_port.out + "/")
 					end
 					on_launched (l_http_port)
@@ -164,7 +174,6 @@ feature -- Listening
 					l_listening_socket.accept
 					if not is_shutdown_requested then
 						l_accepted_socket := l_listening_socket.accepted
-
 						if l_accepted_socket /= Void then
 							request_counter := request_counter + 1
 							if is_verbose then
@@ -219,7 +228,7 @@ feature {NONE} -- Helpers
 			end
 		end
 
-	process_incoming_connection (a_socket: TCP_STREAM_SOCKET; a_connection_handler: HTTP_CONNECTION_HANDLER)
+	process_incoming_connection (a_socket: WS_STREAM_SOCKET; a_connection_handler: HTTP_CONNECTION_HANDLER)
 		do
 			a_connection_handler.process_incoming_connection (a_socket)
 		end

@@ -1,32 +1,24 @@
 note
-	description: "Summary description for {TCP_STREAM_SOCKET}."
+	description: "Summary description for {SSL_TCP_STREAM_SOCKET}."
+	author: ""
 	date: "$Date$"
 	revision: "$Revision$"
 
 class
-	TCP_STREAM_SOCKET
+	SSL_TCP_STREAM_SOCKET
 
 inherit
 
-	NETWORK_STREAM_SOCKET
-		redefine
-			make
-		end
+	SSL_NETWORK_STREAM_SOCKET
 
 create
 	make_server_by_address_and_port, make_server_by_port, make_from_separate
 
-create {NETWORK_STREAM_SOCKET}
+create {SSL_NETWORK_STREAM_SOCKET}
 	make_from_descriptor_and_address
 
 feature {NONE} -- Initialization
 
-	make
-			-- Create a network stream socket.
-		do
-			Precursor
-			set_reuse_address
-		end
 
 	make_from_separate (a_descriptor: INTEGER)
 		do
@@ -46,6 +38,10 @@ feature {NONE} -- Initialization
 feature -- Basic operation
 
 	send_message (a_msg: STRING)
+		local
+			a_package: PACKET
+			a_data: MANAGED_POINTER
+			c_string: C_STRING
 		do
 			put_string (a_msg)
 		end
@@ -73,6 +69,11 @@ feature -- Status report
 			retval := c_select_poll_with_timeout (descriptor, True, 0)
 			Result := (retval > 0)
 		end
+
+feature {NONE}-- Implementation
+
+
+
 
 note
 	copyright: "2011-2013, Javier Velilla, Jocelyn Fiat and others"

@@ -13,7 +13,8 @@
 		</option>
 		<library name="base" location="$ISE_LIBRARY\library\base\base.ecf"/>
 		<library name="net" location="$ISE_LIBRARY\library\net\net.ecf"/>
-		<library name="nino" location="..\..\nino.ecf"/>
+		<library name="net_ssl" location="$EIFFEL_LIBRARY\eiffel_net_openssl\net_ssl-safe.ecf"/>
+		<library name="websocket_server" location="..\..\websocket_server.ecf" readonly="false"/>
 		<cluster name="src" location=".\" recursive="true"/>
 	</target>
 	<target name="echo_websocket_server_threaded" extends="common">
