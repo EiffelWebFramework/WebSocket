@@ -24,5 +24,12 @@ feature -- Access
 
 	description: READABLE_STRING_8
 
+feature -- Conversion
+
+	string: STRING
+		do
+			create Result.make_from_string ("Error(" + code.out + "): " + description)
+		end
+
 
 end

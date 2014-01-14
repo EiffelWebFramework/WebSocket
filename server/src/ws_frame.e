@@ -108,6 +108,32 @@ feature -- Access: injected control frames
 	is_injected_control: BOOLEAN
 		do
 			Result := parent /= Void
+		ensure
+			Result implies (is_control_frame (opcode))
+		end
+
+feature -- Operation
+
+	update_fin (a_flag_is_fin: BOOLEAN)
+		do
+			is_fin := a_flag_is_fin
+		end
+
+	validate
+			-- Check current frame
+		do
+			if is_valid then
+				if is_text and is_fin then
+						-- Check the whole message is a valid UTF-8 string
+					if attached payload_data as d then
+						if not is_valid_utf_8_string (d) then
+							report_error (invalid_data, "The text message is not a valid UTF-8 text!")
+						end
+					else
+							-- empty payload??
+					end
+				end
+			end
 		end
 
 feature {WS_FRAME} -- Change: injected control frames 			
@@ -159,6 +185,11 @@ feature -- Query
 			Result := opcode = text_frame
 		end
 
+	is_continuation: BOOLEAN
+		do
+			Result := opcode = continuation_frame
+		end
+
 	is_connection_close: BOOLEAN
 		do
 			Result := opcode = connection_close_frame
@@ -199,24 +230,21 @@ feature -- Status report
 
 feature -- Change
 
-	set_is_fin (b: BOOLEAN)
-		do
-			is_fin := b
-		end
-
 	append_payload_data_fragment (a_data: STRING_8; a_len: NATURAL_64)
 		do
 			fragment_count := fragment_count + 1
-			if is_text and then not is_valid_text_payload_data_fragment (a_data) then
-				report_error (invalid_data, "The payload is not valid UTF-8!")
-					-- the connection should then be closed!
+			if attached payload_data as l_payload_data then
+				l_payload_data.append (a_data)
 			else
-				if attached payload_data as d then
-					d.append (a_data)
-				else
-					payload_data := a_data
+				payload_data := a_data
+			end
+			payload_length := payload_length + a_len
+
+			if is_text then
+				if not is_valid_text_payload_stream then
+					report_error (invalid_data, "This is not a valid UTF-8 stream!")
+						-- is_valid implies the connection will be closed!
 				end
-				payload_length := payload_length + a_len
 			end
 		end
 
@@ -232,28 +260,42 @@ feature -- Change
 
 feature {NONE} -- Helper
 
-	is_valid_text_payload_data_fragment (s: READABLE_STRING_8): BOOLEAN
+	last_utf_8_stream_validation_position: INTEGER
+			-- In relation with `is_valid_utf_8 (.., a_is_stream=True)'
+
+	is_valid_text_payload_stream: BOOLEAN
 		require
 			is_text_frame: is_text
 		do
-			if not is_text then
-				Result := True
-			else
-				Result := is_valid_utf_8_string_8 (s)
+			if attached payload_data as s then
+				Result := is_valid_utf_8 (s, True)
 			end
 		end
 
-	is_valid_utf_8_string_8 (s: READABLE_STRING_8): BOOLEAN
+	is_valid_utf_8_string (s: READABLE_STRING_8): BOOLEAN
+		do
+			Result := (create {UTF_CONVERTER}).is_valid_utf_8_string_8 (s) and is_valid_utf_8 (s, False)
+		end
+
+	is_valid_utf_8 (s: READABLE_STRING_8; a_is_stream: BOOLEAN): BOOLEAN
+			-- Not that
+		require
+			is_text_frame: is_text
 		local
 			i: like {STRING_8}.count
 			n: like {STRING_8}.count
 			c,w: NATURAL_32
-			utf: UTF_CONVERTER
+			l_is_incomplete_stream: BOOLEAN
 		do
---			Result := True
-			Result := utf.is_valid_utf_8_string_8 (s)
+			Result := True
+--				Result := (create {UTF_CONVERTER}).is_valid_utf_8_string_8 (s)
 				-- Following code also check that codepoint is between 0 and 0x10FFFF (as expected by spec, and tested by autobahn ws testsuite)
 			from
+				if a_is_stream then
+					i := last_utf_8_stream_validation_position -- to avoid recomputing from the beginning each time.
+				else
+					i := 0
+				end
 				n := s.count
 			until
 				i >= n or not Result
@@ -271,6 +313,8 @@ feature {NONE} -- Helper
 							((c & 0x1F) |<< 6) |
 							(s.code (i) & 0x3F)
 						)
+					else
+						l_is_incomplete_stream := True
 					end
 				elseif c <= 0xEF then
 						-- 1110xxxx 10xxxxxx 10xxxxxx
@@ -281,6 +325,8 @@ feature {NONE} -- Helper
 							((s.code (i - 1) & 0x3F) |<< 6) |
 							(s.code (i) & 0x3F)
 						)
+					else
+						l_is_incomplete_stream := True
 					end
 				elseif c <= 0xF7 then
 						-- 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
@@ -292,14 +338,27 @@ feature {NONE} -- Helper
 							((s.code (i - 1) & 0x3F) |<< 6) |
 							(s.code (i) & 0x3F)
 						)
+					else
+						l_is_incomplete_stream := True
 					end
 				else
 					Result := False
 				end
-				Result := Result and w <= {NATURAL_32} 0x10FFFF
+				if Result then
+					if l_is_incomplete_stream then
+						Result := a_is_stream
+					else
+						if w > 0x10FFFF then
+							Result := False
+						elseif 0xD800 <= w and w <= 0xDFFF then
+							Result := False
+						end
+					end
+				end
+				if Result and a_is_stream and not l_is_incomplete_stream then
+					last_utf_8_stream_validation_position := i
+				end
 			end
-		ensure
-			Result implies (create {UTF_CONVERTER}).is_valid_utf_8_string_8 (s)
 		end
 
 end

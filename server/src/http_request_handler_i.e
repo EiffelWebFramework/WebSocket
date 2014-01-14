@@ -43,7 +43,6 @@ feature {NONE} -- Initialization
 			create request_header.make_empty
 			create request_header_map.make (10)
 			is_handshake := False
-			close_description := [Normal_closure, "Normal close"]
 		end
 
 feature -- Access
@@ -60,8 +59,6 @@ feature -- Access
 
 	has_error: BOOLEAN
 			-- Error occurred during `analyze_request_message'
-
-	close_description: TUPLE [code:INTEGER; description: STRING]
 
 	method: STRING
 			-- http verb
@@ -289,8 +286,7 @@ feature -- WebSockets
 					l_fin or not is_data_frame_ok
 				loop
 						-- multi-frames or continue is only valid for Binary or Text
-					a_socket.read_stream (1)
-					s := a_socket.last_string
+					s := next_bytes (a_socket, 1)
 					if s.is_empty then
 						is_data_frame_ok := False
 						debug ("ws")
@@ -310,9 +306,11 @@ feature -- WebSockets
 						if Result /= Void then
 							if l_opcode = Result.opcode then
 									-- should not occur in multi-fragment frame!
-								Result.report_error (protocol_error, "Unexpected frame")
+								create Result.make (l_opcode, l_fin)
+								Result.report_error (protocol_error, "Unexpected injected frame")
 							elseif l_opcode = continuation_frame then
 									-- Expected
+								Result.update_fin (l_fin)
 							elseif is_control_frame (l_opcode) then
 									-- Control frames (see Section 5.5) MAY be injected in the middle of
 									-- a fragmented message.  Control frames themselves MUST NOT be fragmented.
@@ -321,16 +319,20 @@ feature -- WebSockets
 								create Result.make_as_injected_control (l_opcode, Result)
 							else
 									-- should not occur in multi-fragment frame!
+								create Result.make (l_opcode, l_fin)
 								Result.report_error (protocol_error, "Unexpected frame")
 							end
 						else
 							create Result.make (l_opcode, l_fin)
+							if Result.is_continuation then
+									-- Continuation frame is not expected without parent frame!
+								Result.report_error (protocol_error, "There is no message to continue!")
+							end
 						end
-
-						log ("%NStandard Action:" + opcode_name (l_opcode))
 
 						if Result.is_valid then
 								--| valid frame/fragment
+							log ("+ frame " + opcode_name (l_opcode) + " (fin=" + l_fin.out + ")")
 
 								-- rsv validation
 							if not l_rsv then
@@ -345,14 +347,15 @@ feature -- WebSockets
 									-- FIXME: add support for extension ?
 								Result.report_error (protocol_error, "RSV values MUST be 0 unless an extension is negotiated that defines meanings for non-zero values")
 							end
+						else
+							log ("+ INVALID frame " + opcode_name (l_opcode) + " (fin=" + l_fin.out + ")")
 						end
 
 							-- At the moment only TEXT, (pending Binary)
 						if Result.is_valid then
 							if Result.is_text or Result.is_binary or Result.is_control then
 										-- Reading next byte (mask+payload_len)
-								a_socket.read_stream (1)
-								s := a_socket.last_string
+								s := next_bytes (a_socket, 1)
 								if s.is_empty then
 									Result.report_error (invalid_data, "Incomplete data for mask and payload len")
 								else
@@ -471,7 +474,7 @@ feature -- WebSockets
 													Result.report_error (internal_error, "Issue reading payload data...")
 												end
 											end
-											log ("%N" + s.count.out + " out of " + l_len.out + " received <===============")
+											log ("  Received " + s.count.out + " out of " + l_len.out + " bytes <===============")
 
 											debug ("ws")
 												print (" -> ")
@@ -481,7 +484,7 @@ feature -- WebSockets
 													print (string_to_byte_hexa_representation (s))
 												end
 												print ("%N")
-												if Result.is_text then
+												if Result.is_text and Result.is_fin and Result.fragment_count = 0 then
 													print (" -> ")
 													if s.count > 50 then
 														print (s.head (50) + "..")
@@ -499,6 +502,9 @@ feature -- WebSockets
 						end
 					end
 					if Result /= Void then
+						if attached Result.error as err then
+							log ("  !Invalid frame: " +  err.string)
+						end
 						if Result.is_injected_control then
 							if attached Result.parent as l_parent then
 								if not Result.is_valid then
@@ -518,6 +524,8 @@ feature -- WebSockets
 								check has_parent: False end
 								l_fin := False -- This is a control frame but occurs in fragmented frame.
 							end
+						else
+							Result.validate
 						end
 						if not Result.is_valid then
 							is_data_frame_ok := False
@@ -819,9 +827,7 @@ feature -- Output
 			if attached logger as l_logger then
 				separate_log (m, l_logger)
 			else
-				debug ("ws")
-					io.put_string (m + "%N")
-				end
+				io.put_string (m + "%N")
 			end
 		end
 
