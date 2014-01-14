@@ -312,35 +312,30 @@ feature {NONE} -- Helper
 				if c <= 0x7F then
 						-- 0xxxxxxx
 					w := c
-				elseif c = 0xC0 or c = 0xC1 then
-						-- The octet values C0, C1, F5 to FF never appear.
-					Result := False
-				elseif c <= 0xDF then
+--				elseif c = 0xC0 or c = 0xC1 then
+--						-- The octet values C0, C1, F5 to FF never appear.
+--					Result := False
+				elseif (c & 0xE0) = 0xC0 then
 						-- 110xxxxx 10xxxxxx
 					i := i + 1
 					if i <= n then
 						if
-							(c & 0xE0) = 0xC0 and
 							(s.code (i) & 0xC0) = 0x80
 						then
 							w :=  ((c & 0x1F) |<< 6)
 								|  (s.code (i) & 0x3F)
-							if 0x80 <= w and w <= 0x7FF then
-							else
-								Result := False
-							end
+							Result := 0x80 <= w and w <= 0x7FF
 						else
 							Result := False
 						end
 					else
 						l_is_incomplete_stream := True
 					end
-				elseif c <= 0xEF then
+				elseif (c & 0xF0) = 0xE0 then
 						-- 1110xxxx 10xxxxxx 10xxxxxx
 					i := i + 2
 					if i <= n then
 						if
-							(c & 0xF0) = 0xE0 and
 							(s.code (i - 1) & 0xC0) = 0x80 and
 							(s.code (i) & 0xC0) = 0x80
 						then
@@ -361,12 +356,11 @@ feature {NONE} -- Helper
 					else
 						l_is_incomplete_stream := True
 					end
-				elseif c <= 0xF7 then -- 0001 0000-0010 FFFF
+				elseif (c & 0xF8) = 0xF0 then -- 0001 0000-0010 FFFF
 						-- 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
 					i := i + 3
 					if i <= n then
 						if
-							(c & 0xF8) = 0xF0 and
 							(s.code (i - 2) & 0xC0) = 0x80 and
 							(s.code (i - 1) & 0xC0) = 0x80 and
 							(s.code (i) & 0xC0) = 0x80
@@ -375,10 +369,7 @@ feature {NONE} -- Helper
 								 ((s.code (i - 2) & 0x3F) |<< 12) |
 								 ((s.code (i - 1) & 0x3F) |<< 6) |
 								 (s.code (i) & 0x3F)
-							if 0x1_0000 <= w and w <= 0x10_FFFF then
-							else
-								Result := False
-							end
+							Result := 0x1_0000 <= w and w <= 0x10_FFFF
 						else
 							Result := False
 						end
@@ -391,17 +382,9 @@ feature {NONE} -- Helper
 				if Result then
 					if l_is_incomplete_stream then
 						Result := a_is_stream
-					else
-						if w > 0x10FFFF then
-							Result := False
-						elseif 0xD800 <= w and w <= 0xDFFF then
-								-- The definition of UTF-8 prohibits encoding character numbers between U+D800 and U+DFFF
-							Result := False
-						end
+					elseif a_is_stream then
+						last_utf_8_stream_validation_position := i
 					end
-				end
-				if Result and a_is_stream and not l_is_incomplete_stream then
-					last_utf_8_stream_validation_position := i
 				end
 			end
 		end
