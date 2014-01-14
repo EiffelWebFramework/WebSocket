@@ -266,6 +266,8 @@ feature -- WebSockets
 			l_has_mask: BOOLEAN
 			l_chunk_size: INTEGER
 			l_byte: INTEGER
+			l_fetch_count: INTEGER
+			l_bytes_read: INTEGER
 			s: STRING
 			is_data_frame_ok: BOOLEAN -- Is the last process data framing ok?
 
@@ -446,55 +448,59 @@ feature -- WebSockets
 											end
 
 											from
-												create s.make (l_len)
+												l_fetch_count := 0
 												l_remaining_len := l_len
 											until
-												s.count >= l_len or l_len = 0 or not Result.is_valid
+												l_fetch_count >= l_len or l_len = 0 or not Result.is_valid
 											loop
 												if l_remaining_len < l_chunk_size then
 													l_chunk_size := l_remaining_len
 												end
 												a_socket.read_stream (l_chunk_size)
+												l_bytes_read := a_socket.bytes_read
 												debug ("ws")
-													print ("read chunk size=" + l_chunk_size.out + " s.count="+ s.count.out +" l_len="+l_len.out+" -> " + a_socket.bytes_read.out + "bytes%N")
+													print ("read chunk size=" + l_chunk_size.out + " fetch_count="+ l_fetch_count.out +" l_len="+l_len.out+" -> " + l_bytes_read.out + "bytes%N")
 												end
 												if a_socket.bytes_read > 0 then
-													l_remaining_len := l_remaining_len - a_socket.bytes_read
+													l_remaining_len := l_remaining_len - l_bytes_read
 
 													l_chunk := a_socket.last_string
 													if l_masking_key /= Void then
 															--  Masking
 															--  http://tools.ietf.org/html/rfc6455#section-5.3
-														append_chunk_unmasked (l_chunk, s.count + 1, l_masking_key, s)
+														unmask (l_chunk, l_fetch_count + 1, l_masking_key)
 													else
-														s.append (l_chunk)
 														check client_frame_should_always_be_encoded: False end
 													end
+													l_fetch_count := l_fetch_count + l_bytes_read
+													Result.append_payload_data_chop (l_chunk, l_bytes_read, l_remaining_len = 0)
 												else
 													Result.report_error (internal_error, "Issue reading payload data...")
 												end
 											end
-											log ("  Received " + s.count.out + " out of " + l_len.out + " bytes <===============")
+											log ("  Received " + l_fetch_count.out + " out of " + l_len.out + " bytes <===============")
 
 											debug ("ws")
 												print (" -> ")
-												if s.count > 50 then
-													print (string_to_byte_hexa_representation (s.head (50) + ".."))
-												else
-													print (string_to_byte_hexa_representation (s))
-												end
-												print ("%N")
-												if Result.is_text and Result.is_fin and Result.fragment_count = 0 then
-													print (" -> ")
+												if attached Result.payload_data as l_payload_data then
+													s := l_payload_data.tail (l_fetch_count)
 													if s.count > 50 then
-														print (s.head (50) + "..")
+														print (string_to_byte_hexa_representation (s.head (50) + ".."))
 													else
-														print (s)
+														print (string_to_byte_hexa_representation (s))
 													end
 													print ("%N")
+													if Result.is_text and Result.is_fin and Result.fragment_count = 0 then
+														print (" -> ")
+														if s.count > 50 then
+															print (s.head (50) + "..")
+														else
+															print (s)
+														end
+														print ("%N")
+													end
 												end
 											end
-											Result.append_payload_data_fragment (s, l_payload_len)
 										end
 									end
 								end
@@ -743,36 +749,17 @@ feature {NONE} -- Socket helpers
 
 feature -- Masking Data Client - Server
 
-	unmask (a_frame: READABLE_STRING_8; a_key: READABLE_STRING_8): STRING
-			--	 To convert masked data into unmasked data, or vice versa, the following
-			--   algorithm is applied.  The same algorithm applies regardless of the
-			--   direction of the translation, e.g., the same steps are applied to
-			--   mask the data as to unmask the data.
-
-			--   Octet i of the transformed data ("transformed-octet-i") is the XOR of
-			--   octet i of the original data ("original-octet-i") with octet at index
-			--   i modulo 4 of the masking key ("masking-key-octet-j"):
-
-			--     j                   = i MOD 4
-			--     transformed-octet-i = original-octet-i XOR masking-key-octet-j
-
-			--   The payload length, indicated in the framing as frame-payload-length,
-			--   does NOT include the length of the masking key.  It is the length of
-			--   the "Payload data", e.g., the number of bytes following the masking
-			--   key.
-		note
-			EIS: "name=Masking","src=http://tools.ietf.org/html/rfc6455#section-5.3", "protocol=uri"
+	unmask (a_chunk: STRING_8; a_pos: INTEGER; a_key: READABLE_STRING_8)
 		local
 			i,n: INTEGER
 		do
-			create Result.make (a_frame.count)
 			from
 				i := 1
-				n := a_frame.count
+				n := a_chunk.count
 			until
 				i > n
 			loop
-				Result.append_code (a_frame.code (i).bit_xor (a_key [((i - 1) \\ 4) + 1].natural_32_code))
+				a_chunk.put_code (a_chunk.code (i).bit_xor (a_key [((i + (a_pos - 1) - 1) \\ 4) + 1].natural_32_code), i)
 				i := i + 1
 			end
 		end

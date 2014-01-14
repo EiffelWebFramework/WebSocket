@@ -20,6 +20,9 @@ note
 				     + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 				     |                     Payload Data continued ...                |
 				     +---------------------------------------------------------------+
+				     
+				     Check the `check_utf_8_validity_on_chop' if there is performance issue 
+				     with bigger data.
 			]"
 	date: "$Date$"
 	revision: "$Revision$"
@@ -223,18 +226,30 @@ feature -- Status report
 
 feature -- Change
 
-	append_payload_data_fragment (a_data: STRING_8; a_len: NATURAL_64)
+	increment_fragment_count
 		do
 			fragment_count := fragment_count + 1
+		end
+
+	check_utf_8_validity_on_chop: BOOLEAN = True
+			-- True: check for each chop
+			-- False: check only for each fragment
+			--| see autobahntestsuite #6.4.3 and #6.4.4
+
+	append_payload_data_chop (a_data: STRING_8; a_len: INTEGER; a_flag_chop_complete: BOOLEAN)
+		do
+			if a_flag_chop_complete then
+				increment_fragment_count
+			end
 			if attached payload_data as l_payload_data then
 				l_payload_data.append (a_data)
 			else
 				payload_data := a_data
 			end
-			payload_length := payload_length + a_len
+			payload_length := payload_length + a_len.to_natural_64
 
 			if is_text then
-				if is_fin then
+				if is_fin and a_flag_chop_complete then
 						-- Check the whole message is a valid UTF-8 string
 					if attached payload_data as d then
 						if not is_valid_utf_8_string (d) then
@@ -243,7 +258,7 @@ feature -- Change
 					else
 							-- empty payload??
 					end
-				else
+				elseif check_utf_8_validity_on_chop or else a_flag_chop_complete then
 						-- Check the payload data as utf-8 stream (may be incomplete at this point)
 					if not is_valid_text_payload_stream then
 						report_error (invalid_data, "This is not a valid UTF-8 stream!")
