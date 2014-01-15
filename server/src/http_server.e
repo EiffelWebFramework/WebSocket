@@ -127,7 +127,7 @@ feature -- Listening
 			-- `a_server': The main server object
 		local
 			l_listening_socket,
-			l_accepted_socket: detachable WS_STREAM_SOCKET
+			l_accepted_socket: detachable HTTP_STREAM_SOCKET
 			l_http_port: INTEGER
 			l_connection_handler: HTTP_CONNECTION_HANDLER
 		do
@@ -228,7 +228,7 @@ feature {NONE} -- Helpers
 			end
 		end
 
-	process_incoming_connection (a_socket: WS_STREAM_SOCKET; a_connection_handler: HTTP_CONNECTION_HANDLER)
+	process_incoming_connection (a_socket: HTTP_STREAM_SOCKET; a_connection_handler: HTTP_CONNECTION_HANDLER)
 		do
 			a_connection_handler.process_incoming_connection (a_socket)
 		end

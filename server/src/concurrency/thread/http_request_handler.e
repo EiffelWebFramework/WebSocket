@@ -17,7 +17,7 @@ inherit
 
 feature -- Change
 
-	set_client_socket (a_socket: separate WS_STREAM_SOCKET)
+	set_client_socket (a_socket: separate HTTP_STREAM_SOCKET)
 		do
 			client_socket := a_socket
 		end
@@ -29,7 +29,6 @@ feature {CONCURRENT_POOL, HTTP_CONNECTION_HANDLER_I} -- Basic operation
 			d: STRING
 		do
 			if attached client_socket as l_socket then
-				on_close (l_socket)  -- TODO, empty for now.
 				d := l_socket.descriptor.out
 				debug ("dbglog")
 					dbglog (generator + ".release: ENTER {" + d + "}")

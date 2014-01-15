@@ -1,16 +1,18 @@
 note
-	description: "Summary description for {WS_STREAM_SOCKET}."
-	author: ""
+	description: "[
+			Summary description for {HTTP_STREAM_SOCKET}
+			that can be used for http or https connection.
+		]"
 	date: "$Date$"
 	revision: "$Revision$"
 
 class
-	WS_STREAM_SOCKET
+	HTTP_STREAM_SOCKET
 
 create
 	make_ssl_server_by_address_and_port, make_ssl_server_by_port, make_server_by_address_and_port, make_server_by_port, make_from_separate
 
-create {WS_STREAM_SOCKET}
+create {HTTP_STREAM_SOCKET}
 	make
 
 feature {NONE} -- Initialization
@@ -43,7 +45,7 @@ feature {NONE} -- Initialization
 			create {TCP_STREAM_SOCKET} socket.make_server_by_port (a_port)
 		end
 
-	make_from_separate (s: separate WS_STREAM_SOCKET)
+	make_from_separate (s: separate HTTP_STREAM_SOCKET)
 		local
 			l_string: STRING
 		do
@@ -58,7 +60,7 @@ feature {NONE} -- Initialization
 			end
 		end
 
-	retrieve_socket (s: separate WS_STREAM_SOCKET): INTEGER
+	retrieve_socket (s: separate HTTP_STREAM_SOCKET): INTEGER
 		do
 			Result := s.socket.descriptor
 		end
@@ -257,7 +259,7 @@ feature -- Status Report
 			end
 		end
 
-	accepted: detachable WS_STREAM_SOCKET
+	accepted: detachable HTTP_STREAM_SOCKET
 		do
 			if attached {TCP_STREAM_SOCKET} socket as l_socket then
 				if attached l_socket.accepted as l_accepted then
@@ -270,7 +272,7 @@ feature -- Status Report
 			end
 		end
 
-feature {NONE, WS_STREAM_SOCKET} -- Implementation
+feature {NONE, HTTP_STREAM_SOCKET} -- Implementation
 
 	make (a_socket: STREAM_SOCKET)
 		do

@@ -55,7 +55,6 @@ feature {NONE} -- Initialization
 			debug ("nino")
 				a_cfg.set_is_verbose (True)
 			end
-			a_cfg.set_is_verbose (True)
 		end
 
 feature -- Access
