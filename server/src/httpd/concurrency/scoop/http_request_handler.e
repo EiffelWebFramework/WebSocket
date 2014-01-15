@@ -39,14 +39,14 @@ feature {NONE} -- Initialization
 
 feature -- Access
 
-	client_socket_source: detachable separate WS_STREAM_SOCKET
+	client_socket_source: detachable separate HTTP_STREAM_SOCKET
 				-- Associated original client socket
 				-- kept to avoid being closed when disposed,
 				-- and thus avoid closing related `client_socket'.		
 
 feature -- Change
 
-	set_client_socket (a_socket: separate WS_STREAM_SOCKET)
+	set_client_socket (a_socket: separate HTTP_STREAM_SOCKET)
 		local
 			retried: BOOLEAN
 		do

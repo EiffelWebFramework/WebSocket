@@ -8,18 +8,27 @@ class
 	APPLICATION_CONNECTION_HANDLER
 
 inherit
-	HTTP_REQUEST_HANDLER
+	WS_REQUEST_HANDLER
 
 create
 	make
 
 feature -- Request processing
 
-	on_open (a_socket: WS_STREAM_SOCKET)
+	process_http_request (a_socket: HTTP_STREAM_SOCKET)
+			-- Process request ...
 		do
-			log ("Connecting")
+			a_socket.put_string ("HTTP/1.1  501 Not Implemented%N")
 		end
+
+	on_open (a_socket: HTTP_STREAM_SOCKET)
+		do
+			if is_verbose then
+				log ("Connecting")
+			end
+		end
+
 note
-	copyright: "2011-2013, Javier Velilla, Jocelyn Fiat and others"
+	copyright: "2011-2014, Javier Velilla, Jocelyn Fiat and others"
 	license: "Eiffel Forum License v2 (see http://www.eiffel.com/licensing/forum.txt)"
 end

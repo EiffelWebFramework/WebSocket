@@ -17,7 +17,7 @@ inherit
 
 feature -- Web Socket Interface
 
-	on_event (conn: WS_STREAM_SOCKET; a_message: detachable READABLE_STRING_8; a_opcode: INTEGER)
+	on_event (conn: HTTP_STREAM_SOCKET; a_message: detachable READABLE_STRING_8; a_opcode: INTEGER)
 			-- Called when a frame from the client has been receive
 		require
 			conn_attached: conn /= Void
@@ -49,7 +49,7 @@ feature -- Web Socket Interface
 			end
 		end
 
-	on_open (conn: WS_STREAM_SOCKET)
+	on_open (conn: HTTP_STREAM_SOCKET)
 			-- Called after handshake, indicates that a complete WebSocket connection has been established.
 		require
 			conn_attached: conn /= Void
@@ -57,7 +57,7 @@ feature -- Web Socket Interface
 		deferred
 		end
 
-	on_close (conn: WS_STREAM_SOCKET)
+	on_close (conn: HTTP_STREAM_SOCKET)
 			-- Called after the WebSocket connection is closed.
 		require
 			conn_attached: conn /= Void
@@ -83,7 +83,7 @@ feature -- Web Socket Interface
 
 feature {NONE} -- Implementation
 
-	do_send (conn: WS_STREAM_SOCKET; a_opcode:INTEGER; a_message: READABLE_STRING_8)
+	do_send (conn: HTTP_STREAM_SOCKET; a_opcode:INTEGER; a_message: READABLE_STRING_8)
 		local
 			i: INTEGER
 			l_chunk_size: INTEGER
@@ -116,9 +116,7 @@ feature {NONE} -- Implementation
 				else
 					l_header_message.append_code (n.as_natural_32)
 				end
-	--			l_header_message.append (a_message)
 				conn.put_string (l_header_message)
-	--			conn.put_string (a_message)
 
 				l_chunk_size := 16_384 -- 16K
 				if l_message_count < l_chunk_size then
@@ -133,12 +131,7 @@ feature {NONE} -- Implementation
 							print ("Sending chunk " + (i + 1).out + " -> " + (i + l_chunk_size).out +" / " + l_message_count.out + "%N")
 						end
 						l_chunk := a_message.substring (i + 1, l_message_count.min (i + l_chunk_size))
-
-	--					if conn.ready_for_writing then
-							conn.put_string (l_chunk)
-	--					else
-	--						l_chunk_size := 0
-	--					end						
+						conn.put_string (l_chunk)
 						if l_chunk.count < l_chunk_size then
 							l_chunk_size := 0
 						end

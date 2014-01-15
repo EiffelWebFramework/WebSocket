@@ -1,224 +1,176 @@
 note
-	description: "Summary description for {HTTP_REQUEST_HANDLER_I}."
+	description: "Summary description for {WS_REQUEST_HANDLER}."
 	author: ""
 	date: "$Date$"
 	revision: "$Revision$"
 
 deferred class
-	HTTP_REQUEST_HANDLER_I
+	WS_REQUEST_HANDLER
 
 inherit
-
 	WEB_SOCKET_EVENT_I
 
 	SHARED_BASE64
 
-	HTTP_DEBUG_FACILITIES
-
-	HTTP_CONSTANTS
-		export
-			{NONE} all
+	HTTP_REQUEST_HANDLER
+		redefine
+			reset, release
 		end
 
 feature {NONE} -- Initialization
 
-	make
-		do
-			reset
-		end
-
 	reset
 		do
-			has_error := False
-			version := Void
-			remote_info := Void
-			if attached client_socket as l_sock then
-				l_sock.cleanup
-			end
-			client_socket := Void
+			Precursor
+			is_websocket := False
+			is_verbose := True -- HACK: for dev time, always log
+		end
 
-				-- FIXME: optimize to just wipe_out if needed
-			create method.make_empty
-			create uri.make_empty
-			create request_header.make_empty
-			create request_header_map.make (10)
-			is_handshake := False
+feature {CONCURRENT_POOL, HTTP_CONNECTION_HANDLER_I} -- Basic operation		
+
+	release
+		local
+			d: STRING
+		do
+			if attached client_socket as l_socket then
+				on_close (l_socket)  -- TODO, empty for now.
+			end
+			Precursor {HTTP_REQUEST_HANDLER}
 		end
 
 feature -- Access
 
-	is_verbose: BOOLEAN
+	is_websocket: BOOLEAN
+			-- Is the websocket handshake already done?
 
-	client_socket: detachable WS_STREAM_SOCKET
+feature -- Request processing
 
-	request_header: STRING
-			-- Header' source
-
-	request_header_map: HASH_TABLE [STRING, STRING]
-			-- Contains key:value of the header
-
-	has_error: BOOLEAN
-			-- Error occurred during `analyze_request_message'
-
-	method: STRING
-			-- http verb
-
-	uri: STRING
-			--  http endpoint
-
-	version: detachable STRING
-			--  http_version
-			--| unused for now
-
-	remote_info: detachable TUPLE [addr: STRING; hostname: STRING; port: INTEGER]
-			-- Information related to remote client
-
-	is_handshake: BOOLEAN
-			-- Is the handshake already done?
-
-feature -- Change
-
-	set_client_socket (a_socket: separate WS_STREAM_SOCKET)
-		require
-			socket_attached: a_socket /= Void
-			socket_valid: a_socket.is_open_read and then a_socket.is_open_write
-			a_http_socket: not a_socket.is_closed
-		deferred
-		ensure
-			attached client_socket as s implies s.descriptor = a_socket.descriptor
-		end
-
-	set_is_verbose (b: BOOLEAN)
+	process_request (a_socket: HTTP_STREAM_SOCKET)
+			-- Process request ...
 		do
-			is_verbose := b
-		end
+				-- Set socket mode as "blocking", this simplifies the code
+				-- and in protocol based communication, the number of bytes to read
+				-- is always known.
+			a_socket.set_blocking
 
-
-feature -- Execution
-
-	execute
-		local
-			l_remote_info: detachable like remote_info
-			exit: BOOLEAN
-			l_frame: detachable WS_FRAME
-			l_client_message: detachable READABLE_STRING_8
-			l_utf: UTF_CONVERTER
-		do
-			if attached client_socket as l_socket then
-				debug ("dbglog")
-					dbglog (generator + ".ENTER execute {" + l_socket.descriptor.out + "}")
-				end
-
-					-- Set socket mode as "blocking", this simplifies the code
-					-- and in protocol based communication, the number of bytes to read
-					-- is always known.
-				l_socket.set_blocking
-
-				from
-				until
-					 has_error or else exit
-				loop
-					if l_socket.ready_for_reading then
-						debug ("dbglog")
-							dbglog (generator + ".LOOP execute {" + l_socket.descriptor.out + "}")
-						end
-						create l_remote_info
-						if attached l_socket.peer_address as l_addr then
-							l_remote_info.addr := l_addr.host_address.host_address
-							l_remote_info.hostname := l_addr.host_address.host_name
-							l_remote_info.port := l_addr.port
-							remote_info := l_remote_info
-						end
-						if not is_handshake then
-							opening_handshake (l_socket)
-							on_open (l_socket)
-						else
-							l_frame := next_frame (l_socket)
-
-							if l_frame /= Void and then l_frame.is_valid then
-								if attached l_frame.injected_control_frames as l_injections then
-										-- Process injected control frames now.
-										-- FIXME
-									across
-										l_injections as ic
-									loop
-										if ic.item.is_connection_close then
-												-- FIXME: we should probably send this event .. after the `l_frame.parent' frame event.
-											on_event (l_socket, ic.item.payload_data, ic.item.opcode)
-		                      				exit := True
-		                      			elseif ic.item.is_ping then
-		                      					-- FIXME reply only to the most recent ping ...
-		                      				on_event (l_socket, ic.item.payload_data, ic.item.opcode)
-		                      			else
-		                      				on_event (l_socket, ic.item.payload_data, ic.item.opcode)
-										end
-									end
-								end
-
-								l_client_message := l_frame.payload_data
-								if l_client_message = Void then
-									l_client_message := ""
-								end
-
-								debug ("ws")
-									print("%NExecute: %N")
-									print (" [opcode: "+ opcode_name (l_frame.opcode) +"]%N")
-									if l_frame.is_text then
-										print (" [client message: %""+ l_client_message +"%"]%N")
-									elseif l_frame.is_binary then
-										print (" [client binary message length: %""+ l_client_message.count.out +"%"]%N")
-									end
-									print (" [is_control: " + l_frame.is_control.out + "]%N")
-									print (" [is_binary: " + l_frame.is_binary.out + "]%N")
-									print (" [is_text: " + l_frame.is_text.out + "]%N")
-								end
-
-								if l_frame.is_connection_close then
-									on_event (l_socket, l_client_message, l_frame.opcode)
-                      				exit := True
-								elseif l_frame.is_binary then
- 									on_event (l_socket, l_client_message, l_frame.opcode)
- 								elseif l_frame.is_text then
-	 								check is_valid_utf_8: l_utf.is_valid_utf_8_string_8 (l_client_message) end
-	 								on_event (l_socket, l_client_message, l_frame.opcode)
-	 							else
-	 								on_event (l_socket, l_client_message, l_frame.opcode)
-	 							end
- 							else
-								debug ("ws")
-									print("%NExecute: %N")
-									print (" [ERROR: invalid frame]%N")
-									if l_frame /= Void and then attached l_frame.error as err then
-										print (" [Code: "+ err.code.out +"]%N")
-										print (" [Description: "+ err.description +"]%N")
-									end
-								end
-								on_event (l_socket, "", connection_close_frame)
- 								exit := True
-							end
-						end
-					else
-						log (generator + ".WAITING execute {" + l_socket.descriptor.out + "}")
-					end
-				end
+			is_websocket := False
+			open_ws_handshake (a_socket)
+			if is_websocket then
+				on_open (a_socket)
+				process_ws_request (a_socket)
 			else
-				check
-					has_client_socket: False
-				end
+				process_http_request (a_socket)
 			end
 			release
 		rescue
 			release
 		end
 
-	release
+feature -- Request processing
+
+	process_http_request (a_socket: HTTP_STREAM_SOCKET)
+			-- Process request ...
+		require
+			no_error: not has_error
+			a_uri_attached: uri /= Void
+			a_method_attached: method /= Void
+			a_header_map_attached: request_header_map /= Void
+			a_header_text_attached: request_header /= Void
+			a_socket_attached: a_socket /= Void
+		deferred
+		end
+
+	process_ws_request (a_socket: HTTP_STREAM_SOCKET)
+		require
+			is_websocket: is_websocket
+		local
+			exit: BOOLEAN
+			l_frame: detachable WS_FRAME
+			l_client_message: detachable READABLE_STRING_8
+			l_utf: UTF_CONVERTER
 		do
-			reset
+			from
+					-- loop until ws is closed or has error.
+			until
+				 has_error or else exit
+			loop
+				debug ("dbglog")
+					dbglog (generator + ".LOOP WS_REQUEST_HANDLER.process_request {" + a_socket.descriptor.out + "}")
+				end
+				if a_socket.ready_for_reading then
+					l_frame := next_frame (a_socket)
+					if l_frame /= Void and then l_frame.is_valid then
+						if attached l_frame.injected_control_frames as l_injections then
+								-- Process injected control frames now.
+								-- FIXME
+							across
+								l_injections as ic
+							loop
+								if ic.item.is_connection_close then
+										-- FIXME: we should probably send this event .. after the `l_frame.parent' frame event.
+									on_event (a_socket, ic.item.payload_data, ic.item.opcode)
+                      				exit := True
+                      			elseif ic.item.is_ping then
+                      					-- FIXME reply only to the most recent ping ...
+                      				on_event (a_socket, ic.item.payload_data, ic.item.opcode)
+                      			else
+                      				on_event (a_socket, ic.item.payload_data, ic.item.opcode)
+								end
+							end
+						end
+
+						l_client_message := l_frame.payload_data
+						if l_client_message = Void then
+							l_client_message := ""
+						end
+
+						debug ("ws")
+							print("%NExecute: %N")
+							print (" [opcode: "+ opcode_name (l_frame.opcode) +"]%N")
+							if l_frame.is_text then
+								print (" [client message: %""+ l_client_message +"%"]%N")
+							elseif l_frame.is_binary then
+								print (" [client binary message length: %""+ l_client_message.count.out +"%"]%N")
+							end
+							print (" [is_control: " + l_frame.is_control.out + "]%N")
+							print (" [is_binary: " + l_frame.is_binary.out + "]%N")
+							print (" [is_text: " + l_frame.is_text.out + "]%N")
+						end
+
+						if l_frame.is_connection_close then
+							on_event (a_socket, l_client_message, l_frame.opcode)
+                      				exit := True
+						elseif l_frame.is_binary then
+ 									on_event (a_socket, l_client_message, l_frame.opcode)
+ 								elseif l_frame.is_text then
+ 								check is_valid_utf_8: l_utf.is_valid_utf_8_string_8 (l_client_message) end
+ 								on_event (a_socket, l_client_message, l_frame.opcode)
+ 							else
+ 								on_event (a_socket, l_client_message, l_frame.opcode)
+ 							end
+ 							else
+						debug ("ws")
+							print("%NExecute: %N")
+							print (" [ERROR: invalid frame]%N")
+							if l_frame /= Void and then attached l_frame.error as err then
+								print (" [Code: "+ err.code.out +"]%N")
+								print (" [Description: "+ err.description +"]%N")
+							end
+						end
+						on_event (a_socket, "", connection_close_frame)
+ 							exit := True
+					end
+				else
+					if is_verbose then
+						log (generator + ".WAITING WS_REQUEST_HANDLER.process_request {" + a_socket.descriptor.out + "}")
+					end
+				end
+			end
 		end
 
 feature -- WebSockets
 
-	next_frame (a_socket: WS_STREAM_SOCKET): detachable WS_FRAME
+	next_frame (a_socket: HTTP_STREAM_SOCKET): detachable WS_FRAME
 			-- TODO Binary messages
 			-- Handle error responses in a better way.
 			-- IDEA:
@@ -257,9 +209,7 @@ feature -- WebSockets
 			l_len: INTEGER
 			l_remaining_len: INTEGER
 			l_payload_len: NATURAL_64
---			l_utf: UTF_CONVERTER
 			l_masking_key: detachable READABLE_STRING_8
---			i: INTEGER
 			l_chunk: STRING
 			l_rsv: BOOLEAN
 			l_fin: BOOLEAN
@@ -270,11 +220,6 @@ feature -- WebSockets
 			l_bytes_read: INTEGER
 			s: STRING
 			is_data_frame_ok: BOOLEAN -- Is the last process data framing ok?
-
---			is_close: BOOLEAN
---			is_incomplete_data: BOOLEAN
---			is_binary: BOOLEAN
---					-- Is the type of the message binary?				
 			retried: BOOLEAN
 		do
 			if not retried then
@@ -334,7 +279,9 @@ feature -- WebSockets
 
 						if Result.is_valid then
 								--| valid frame/fragment
-							log ("+ frame " + opcode_name (l_opcode) + " (fin=" + l_fin.out + ")")
+							if is_verbose then
+								log ("+ frame " + opcode_name (l_opcode) + " (fin=" + l_fin.out + ")")
+							end
 
 								-- rsv validation
 							if not l_rsv then
@@ -350,7 +297,9 @@ feature -- WebSockets
 								Result.report_error (protocol_error, "RSV values MUST be 0 unless an extension is negotiated that defines meanings for non-zero values")
 							end
 						else
-							log ("+ INVALID frame " + opcode_name (l_opcode) + " (fin=" + l_fin.out + ")")
+							if is_verbose then
+								log ("+ INVALID frame " + opcode_name (l_opcode) + " (fin=" + l_fin.out + ")")
+							end
 						end
 
 							-- At the moment only TEXT, (pending Binary)
@@ -478,7 +427,9 @@ feature -- WebSockets
 													Result.report_error (internal_error, "Issue reading payload data...")
 												end
 											end
-											log ("  Received " + l_fetch_count.out + " out of " + l_len.out + " bytes <===============")
+											if is_verbose then
+												log ("  Received " + l_fetch_count.out + " out of " + l_len.out + " bytes <===============")
+											end
 
 											debug ("ws")
 												print (" -> ")
@@ -509,7 +460,9 @@ feature -- WebSockets
 					end
 					if Result /= Void then
 						if attached Result.error as err then
-							log ("  !Invalid frame: " +  err.string)
+							if is_verbose then
+								log ("  !Invalid frame: " +  err.string)
+							end
 						end
 						if Result.is_injected_control then
 							if attached Result.parent as l_parent then
@@ -549,7 +502,7 @@ feature -- WebSockets
 			retry
 		end
 
-	opening_handshake (a_socket: WS_STREAM_SOCKET)
+	open_ws_handshake (a_socket: HTTP_STREAM_SOCKET)
 			-- The opening handshake is intended to be compatible with HTTP-based
 			-- server-side software and intermediaries, so that a single port can be
 			-- used by both HTTP clients alking to that server and WebSocket
@@ -569,20 +522,30 @@ feature -- WebSockets
 			l_key : STRING
 			l_handshake: STRING
 		do
-			analyze_request_message (a_socket)
 				-- Reading client's opening GT
 
 				-- TODO extract to a validator handshake or something like that.
-			log ("%NReceive <====================")
-			log (request_header)
-			if method.same_string ("GET") then --item MUST be GET
-				if attached request_header_map.item (Sec_WebSocket_Key) as l_ws_key and then -- Sec-websocket-key must be present
-					attached request_header_map.item ("Upgrade") as l_upgrade_key and then -- Upgrade header must be present with value websocket
-					l_upgrade_key.is_case_insensitive_equal ("websocket") and then attached request_header_map.item ("Connection") as l_connection_key and then -- Connection header must be present with value Upgrade
-					l_connection_key.has_substring ("Upgrade") and then attached request_header_map.item ("Sec-WebSocket-Version") as l_version_key and then -- Version header must be present with value 13
-					l_version_key.is_case_insensitive_equal ("13") and then attached request_header_map.item ("Host") -- Host header must be present
+			if is_verbose then
+				log ("%NReceive <====================")
+				log (request_header)
+			end
+			is_websocket := False
+			if
+				method.same_string ("GET") and then -- MUST be GET request!
+				attached request_header_map.item ("Upgrade") as l_upgrade_key and then l_upgrade_key.is_case_insensitive_equal ("websocket") -- Upgrade header must be present with value websocket
+			then
+				is_websocket := True
+				if
+					attached request_header_map.item (Sec_WebSocket_Key) as l_ws_key and then -- Sec-websocket-key must be present
+					attached request_header_map.item ("Connection") as l_connection_key and then -- Connection header must be present with value Upgrade
+					l_connection_key.has_substring ("Upgrade") and then
+					attached request_header_map.item ("Sec-WebSocket-Version") as l_version_key and then -- Version header must be present with value 13
+					l_version_key.is_case_insensitive_equal ("13") and then
+					attached request_header_map.item ("Host") -- Host header must be present
 				then
-					log ("key " + l_ws_key)
+					if is_verbose then
+						log ("key " + l_ws_key)
+					end
 						-- Sending the server's opening handshake
 					l_ws_key.append_string (Magic_guid)
 					create l_sha1.make
@@ -596,135 +559,28 @@ feature -- WebSockets
 					l_handshake.append_string ("%R%N")
 						-- end of header empty line
 					l_handshake.append_string ("%R%N")
-					io.put_new_line
-					log ("%N================> Send")
-					log (l_handshake)
+					if is_verbose then
+						log ("%N================> Send")
+						log (l_handshake)
+					end
 					a_socket.put_string (l_handshake)
-					is_handshake := True -- the connection is in OPEN State.
+				else
+					has_error := True
+					if is_verbose then
+						log ("Error (opening_handshake)!!!")
+					end
+						-- If we cannot complete the handshake, then the server MUST stop processing the client's handshake and return an HTTP response with an
+						-- appropriate error code (such as 400 Bad Request).
+					a_socket.put_string ("HTTP/1.1 400 Bad Request%N")
 				end
-			end
-			if not is_handshake then
-				log ("Error (opening_handshake)!!!")
-					-- If we cannot complete the handshake, then the server MUST stop processing the client's handshake and return an HTTP response with an
-					-- appropriate error code (such as 400 Bad Request).
-				has_error := True
-				a_socket.put_string ("HTTP/1.1 400 Bad Request")
-					-- For now a simple Bad Request!!!.
-			end
-		end
-
-feature -- Parsing
-
-	analyze_request_message (a_socket: WS_STREAM_SOCKET)
-			-- Analyze message extracted from `a_socket' as HTTP request
-		require
-			input_readable: a_socket /= Void and then a_socket.is_open_read
-		local
-			end_of_stream: BOOLEAN
-			pos, n: INTEGER
-			line: detachable STRING
-			k, val: STRING
-			txt: STRING
-			l_is_verbose: BOOLEAN
-		do
-			create txt.make (64)
-			request_header := txt
-			if a_socket.is_readable and then attached next_line (a_socket) as l_request_line and then not l_request_line.is_empty then
-				txt.append (l_request_line)
-				txt.append_character ('%N')
-				analyze_request_line (l_request_line)
 			else
-				has_error := True
-			end
-			l_is_verbose := is_verbose
-			if not has_error or l_is_verbose then
-					-- if `is_verbose' we can try to print the request, even if it is a bad HTTP request
-				from
-					line := next_line (a_socket)
-				until
-					line = Void or end_of_stream
-				loop
-					n := line.count
-					if l_is_verbose then
-						log (line)
-					end
-					pos := line.index_of (':', 1)
-					if pos > 0 then
-						k := line.substring (1, pos - 1)
-						if line [pos + 1].is_space then
-							pos := pos + 1
-						end
-						if line [n] = '%R' then
-							n := n - 1
-						end
-						val := line.substring (pos + 1, n)
-						request_header_map.put (val, k)
-					end
-					txt.append (line)
-					txt.append_character ('%N')
-					if line.is_empty or else line [1] = '%R' then
-						end_of_stream := True
-					else
-						line := next_line (a_socket)
-					end
-				end
-			end
-		end
-
-	analyze_request_line (line: STRING)
-			-- Analyze `line' as a HTTP request line
-		require
-			valid_line: line /= Void and then not line.is_empty
-		local
-			pos, next_pos: INTEGER
-		do
-			if is_verbose then
-				log ("%N## Parse HTTP request line ##")
-				log (line)
-			end
-			pos := line.index_of (' ', 1)
-			method := line.substring (1, pos - 1)
-			next_pos := line.index_of (' ', pos + 1)
-			uri := line.substring (pos + 1, next_pos - 1)
-			version := line.substring (next_pos + 1, line.count)
-			has_error := method.is_empty
-		end
-
-	next_line (a_socket: WS_STREAM_SOCKET): detachable STRING
-			-- Next line fetched from `a_socket' is available.
-		require
-			is_readable: a_socket.is_open_read
-		do
-			if a_socket.socket_ok  then
-				a_socket.read_line_thread_aware
-				Result := a_socket.last_string
-			end
-		end
-
-
-	digest (a_sha1: SHA1): STRING
-			-- Digest of `a_sha1'.
-			-- Should by in SHA1 class
-		local
-			l_digest: SPECIAL [NATURAL_8]
-			index, l_upper: INTEGER
-		do
-			l_digest := a_sha1.digest
-			create Result.make (l_digest.count // 2)
-			from
-				index := l_digest.Lower
-				l_upper := l_digest.upper
-			until
-				index > l_upper
-			loop
-				Result.append_character (l_digest [index].to_character_8)
-				index := index + 1
+				is_websocket := False
 			end
 		end
 
 feature {NONE} -- Socket helpers
 
-	next_bytes (a_socket: WS_STREAM_SOCKET; nb: INTEGER): STRING
+	next_bytes (a_socket: HTTP_STREAM_SOCKET; nb: INTEGER): STRING
 		require
 			nb > 0
 		local
@@ -744,6 +600,28 @@ feature {NONE} -- Socket helpers
 				else
 					n := 0
 				end
+			end
+		end
+
+feature -- Encoding
+
+	digest (a_sha1: SHA1): STRING
+			-- Digest of `a_sha1'.
+			-- Should by in SHA1 class
+		local
+			l_digest: SPECIAL [NATURAL_8]
+			index, l_upper: INTEGER
+		do
+			l_digest := a_sha1.digest
+			create Result.make (l_digest.count // 2)
+			from
+				index := l_digest.Lower
+				l_upper := l_digest.upper
+			until
+				index > l_upper
+			loop
+				Result.append_character (l_digest [index].to_character_8)
+				index := index + 1
 			end
 		end
 
@@ -798,29 +676,6 @@ feature -- Masking Data Client - Server
 				a_target.append_code (a_chunk.code (i).bit_xor (a_key [((i + (a_pos - 1) - 1) \\ 4) + 1].natural_32_code))
 				i := i + 1
 			end
-		end
-
-feature -- Output
-
-	logger: detachable separate HTTP_SERVER_LOGGER
-
-	set_logger (a_logger: like logger)
-		do
-			logger := a_logger
-		end
-
-	log (m: STRING)
-		do
-			if attached logger as l_logger then
-				separate_log (m, l_logger)
-			else
-				io.put_string (m + "%N")
-			end
-		end
-
-	separate_log (m: STRING; a_logger: separate HTTP_SERVER_LOGGER)
-		do
-			a_logger.log (m)
 		end
 
 feature {NONE} -- Debug		
@@ -890,12 +745,5 @@ feature {NONE} -- Debug
 				end
 			end
 		end
-
-invariant
-	request_header_attached: request_header /= Void
-
-note
-	copyright: "2011-2013, Javier Velilla, Jocelyn Fiat and others"
-	license: "Eiffel Forum License v2 (see http://www.eiffel.com/licensing/forum.txt)"
 
 end
