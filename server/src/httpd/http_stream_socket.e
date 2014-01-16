@@ -120,10 +120,14 @@ feature -- Output
 
 	send_message (a_msg: STRING)
 		do
-			if attached {SSL_TCP_STREAM_SOCKET} socket as l_ssl_socket then
-				l_ssl_socket.send_message (a_msg)
-			elseif attached {TCP_STREAM_SOCKET} socket as l_socket then
-				l_socket.send_message (a_msg)
+			if attached socket as l_socket then
+				if attached {SSL_TCP_STREAM_SOCKET} l_socket as l_ssl_socket then
+					l_ssl_socket.send_message (a_msg)
+				elseif attached {TCP_STREAM_SOCKET} socket as l_normal_socket then
+					l_normal_socket.send_message (a_msg)
+				else
+					l_socket.put_string (a_msg)
+				end
 			end
 		end
 

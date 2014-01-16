@@ -28,6 +28,24 @@ feature -- Request processing
 			end
 		end
 
+	on_binary (conn: HTTP_STREAM_SOCKET; a_message: READABLE_STRING_8)
+		do
+			send (conn, Binary_frame, a_message)
+		end
+
+	on_text (conn: HTTP_STREAM_SOCKET; a_message: READABLE_STRING_8)
+		do
+			send (conn, Text_frame, a_message)
+		end
+
+	on_close (conn: detachable HTTP_STREAM_SOCKET)
+			-- Called after the WebSocket connection is closed.
+		do
+			if is_verbose then
+				log ("Connection closed")
+			end
+		end
+
 note
 	copyright: "2011-2014, Javier Velilla, Jocelyn Fiat and others"
 	license: "Eiffel Forum License v2 (see http://www.eiffel.com/licensing/forum.txt)"

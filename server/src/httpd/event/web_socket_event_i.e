@@ -35,17 +35,17 @@ feature -- Web Socket Interface
 			end
 
 			if a_opcode = Binary_frame then
-				do_send (conn, Binary_frame, l_message)
+				on_binary (conn, l_message)
 			elseif a_opcode = Text_frame then
-				do_send (conn, Text_frame, l_message)
+				on_text (conn, l_message)
 			elseif a_opcode = Pong_frame then
-					-- log ("Its a pong frame")
-					-- at first we ignore  pong
-					-- FIXME: provide better explanation
+				on_pong (conn, l_message)
 			elseif a_opcode = Ping_frame then
-				do_send (conn, Pong_frame, l_message)
+				on_ping (conn, l_message)
 			elseif a_opcode = Connection_close_frame then
-				do_send (conn, connection_close_frame, "")
+				on_connection_close (conn, "")
+			else
+				on_unsupported (conn, l_message, a_opcode)
 			end
 		end
 
@@ -57,33 +57,62 @@ feature -- Web Socket Interface
 		deferred
 		end
 
-	on_close (conn: HTTP_STREAM_SOCKET)
-			-- Called after the WebSocket connection is closed.
+	on_binary (conn: HTTP_STREAM_SOCKET; a_message: READABLE_STRING_8)
 		require
 			conn_attached: conn /= Void
 			conn_valid: conn.is_open_read and then conn.is_open_write
-		local
-			retried: BOOLEAN
-		do
-			if not retried then
-				conn.send_message (close_message)
-			end
-		rescue
-			retried := True
-			print ("Internal error: on_close!%N")
-			retry
+		deferred
 		end
 
-	close_message: STRING
+	on_pong (conn: HTTP_STREAM_SOCKET; a_message: READABLE_STRING_8)
+		require
+			conn_attached: conn /= Void
+			conn_valid: conn.is_open_read and then conn.is_open_write
 		do
-			create Result.make_empty
-			Result.append_code (129)
-			Result.append_code (2)
+				-- log ("Its a pong frame")
+				-- at first we ignore  pong
+				-- FIXME: provide better explanation			
+		end
+
+	on_ping (conn: HTTP_STREAM_SOCKET; a_message: READABLE_STRING_8)
+		require
+			conn_attached: conn /= Void
+			conn_valid: conn.is_open_read and then conn.is_open_write
+		do
+			send (conn, Pong_frame, a_message)
+		end
+
+	on_text (conn: HTTP_STREAM_SOCKET; a_message: READABLE_STRING_8)
+		require
+			conn_attached: conn /= Void
+			conn_valid: conn.is_open_read and then conn.is_open_write
+		deferred
+		end
+
+	on_unsupported (conn: HTTP_STREAM_SOCKET; a_message: READABLE_STRING_8; a_opcode: INTEGER)
+		require
+			conn_attached: conn /= Void
+			conn_valid: conn.is_open_read and then conn.is_open_write
+		do
+				-- do nothing
+		end
+
+	on_connection_close (conn: HTTP_STREAM_SOCKET; a_message: detachable READABLE_STRING_8)
+		require
+			conn_attached: conn /= Void
+			conn_valid: conn.is_open_read and then conn.is_open_write
+		do
+			send (conn, Connection_close_frame, "")
+		end
+
+	on_close (conn: detachable HTTP_STREAM_SOCKET)
+			-- Called after the WebSocket connection is closed.
+		deferred
 		end
 
 feature {NONE} -- Implementation
 
-	do_send (conn: HTTP_STREAM_SOCKET; a_opcode:INTEGER; a_message: READABLE_STRING_8)
+	send (conn: HTTP_STREAM_SOCKET; a_opcode:INTEGER; a_message: READABLE_STRING_8)
 		local
 			i: INTEGER
 			l_chunk_size: INTEGER
@@ -93,6 +122,7 @@ feature {NONE} -- Implementation
 			n: NATURAL_64
 			retried: BOOLEAN
 		do
+			print (">>do_send (..., "+ opcode_name (a_opcode) +", ..)%N")
 			if not retried then
 				create l_header_message.make_empty
 				l_header_message.append_code ((0x80 | a_opcode).to_natural_32)

@@ -32,10 +32,8 @@ feature {CONCURRENT_POOL, HTTP_CONNECTION_HANDLER_I} -- Basic operation
 		local
 			d: STRING
 		do
-			if attached client_socket as l_socket then
-				on_close (l_socket)  -- TODO, empty for now.
-			end
 			Precursor {HTTP_REQUEST_HANDLER}
+			on_close (client_socket)
 		end
 
 feature -- Access

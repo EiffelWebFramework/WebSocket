@@ -38,10 +38,6 @@ feature {NONE} -- Initialization
 feature -- Basic operation
 
 	send_message (a_msg: STRING)
-		local
-			a_package: PACKET
-			a_data: MANAGED_POINTER
-			c_string: C_STRING
 		do
 			put_string (a_msg)
 		end
