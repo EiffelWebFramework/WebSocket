@@ -92,6 +92,32 @@ feature -- Opcodes Standard actions
 
 	Pong_frame: INTEGER = 10
 
+	is_control_frame (a_opcode: INTEGER): BOOLEAN
+			-- Is `a_opcode' a control frame?
+		do
+			inspect a_opcode
+			when Connection_close_frame, Ping_frame, Pong_frame then
+				Result := True
+			else
+			end
+		end
+
+	opcode_name (a_opcode: INTEGER): STRING
+		do
+			inspect a_opcode
+			when Continuation_frame then Result := "Continuation"
+			when Text_frame then Result := "Text"
+			when Binary_frame then Result := "Binary"
+			when Connection_close_frame then Result := "Connection Close"
+			when Ping_frame then Result := "Ping"
+			when Pong_frame then Result := "Pong"
+			else
+				Result := "Unknown-Opcode"
+			end
+			Result := "0x" + a_opcode.to_hex_string + " " + Result
+		end
+
+
 feature -- Close code numbers
 
 		-- Maybe an ENUM CLOSE_CODES

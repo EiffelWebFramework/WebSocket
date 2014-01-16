@@ -142,13 +142,13 @@ feature -- Request processing
                       				exit := True
 						elseif l_frame.is_binary then
  									on_event (a_socket, l_client_message, l_frame.opcode)
- 								elseif l_frame.is_text then
+ 							elseif l_frame.is_text then
  								check is_valid_utf_8: l_utf.is_valid_utf_8_string_8 (l_client_message) end
  								on_event (a_socket, l_client_message, l_frame.opcode)
  							else
  								on_event (a_socket, l_client_message, l_frame.opcode)
  							end
- 							else
+ 						else
 						debug ("ws")
 							print("%NExecute: %N")
 							print (" [ERROR: invalid frame]%N")

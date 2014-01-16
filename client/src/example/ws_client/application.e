@@ -26,7 +26,7 @@ feature {NONE} -- Initialization
 			l_protocols.fill (<<"com.kaazing.echo","example.imaginary.protocol">>)
 			create l_env
 --			create ws_client.make_with_port ("wss://echo.websocket.org",443, Void)
-			create ws_client.make_with_port ("ws://127.0.0.1",9090, Void)
+			create ws_client.make_with_port ("ws://127.0.0.1",9001, Void)
 			ws_client.launch
 			run
 		end

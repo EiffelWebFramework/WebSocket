@@ -228,7 +228,6 @@ feature -- Methods
 		do
 			do_send (8, "")
 			ready_state.set_state ({WEB_SOCKET_READY_STATE}.closed)
-			socket.close
 		end
 
 	close_with_description (a_id: INTEGER; a_description: READABLE_STRING_GENERAL)
@@ -236,11 +235,8 @@ feature -- Methods
 		local
 			env: EXECUTION_ENVIRONMENT
 		do
-			do_send (8, "1000,Normal Close")
+			do_send (8, "")
 			ready_state.set_state ({WEB_SOCKET_READY_STATE}.closed)
-			create env
-			env.sleep (100000)
-			socket.close
 		end
 
 feature {NONE} -- Implementation
@@ -437,53 +433,129 @@ feature -- Parse Request line
 
 feature -- {WEB_SOCKET_CLIENT}
 
-	do_send (a_opcode: NATURAL_32; a_message: STRING)
-		local
-			l_chunks: INTEGER
-			i: INTEGER
-			l_index: INTEGER
-			l_chunk_size: INTEGER
-			l_key: STRING
-			l_message: STRING
-			l_frame : STRING
-		do
-			print ("%NMessage count:" + a_message.count.out)
-			create l_frame.make_empty
-			create l_message.make_empty
-			if  a_message.count > 65535 then
-					--!Improve. this code need to be checked.
-				print("%N Case:1")
-				l_frame.append_code ((0x80 | a_opcode).to_natural_32)
-				l_frame.append_code ((0x80 | 127).to_natural_32)
+--	do_send (a_opcode: NATURAL_32; a_message: STRING)
+--		local
+--			l_chunks: INTEGER
+--			i: INTEGER
+--			l_index: INTEGER
+--			l_chunk_size: INTEGER
+--			l_key: STRING
+--			l_message: STRING
+--			l_frame : STRING
+--		do
+--			print ("%NMessage count:" + a_message.count.out)
+--			create l_frame.make_empty
+--			create l_message.make_empty
+--			if  a_message.count > 65535 then
+--					--!Improve. this code need to be checked.
+--				print("%N Case:1")
+--				l_frame.append_code ((0x80 | a_opcode).to_natural_32)
+--				l_frame.append_code ((0x80 | 127).to_natural_32)
 
-				l_frame.append_code (0x0)
-				l_frame.append_code (0x0)
-				l_frame.append_code (0x0)
-				l_frame.append_code (0x0)
-				l_frame.append_code (((a_message.count) |>> 32).to_character_8.code.as_natural_32)
-				l_frame.append_code (((a_message.count) |>> 16).to_character_8.code.as_natural_32)
-				l_frame.append_code (((a_message.count ) |>> 8).to_character_8.code.as_natural_32)
-				l_frame.append_code ((a_message.count).to_character_8.code.as_natural_32)
-			elseif a_message.count > 125 then
-				print("%N Case:2")
-				print ("Message count:" + a_message.count.out)
-				l_frame.append_code ((0x80 | a_opcode).to_natural_32)
-				l_frame.append_code ((0x80 | 126).to_natural_32)
-				l_frame.append_code (((a_message.count ) |>> 8).as_natural_32)
-				l_frame.append_code ((a_message.count).to_character_8.code.as_natural_32)
-				print ("%NHeaderMessage:" + l_frame)
+--				l_frame.append_code (0x0)
+--				l_frame.append_code (0x0)
+--				l_frame.append_code (0x0)
+--				l_frame.append_code (0x0)
+--				l_frame.append_code (((a_message.count) |>> 32).to_character_8.code.as_natural_32)
+--				l_frame.append_code (((a_message.count) |>> 16).to_character_8.code.as_natural_32)
+--				l_frame.append_code (((a_message.count ) |>> 8).to_character_8.code.as_natural_32)
+--				l_frame.append_code ((a_message.count).to_character_8.code.as_natural_32)
+--			elseif a_message.count > 125 then
+--				print("%N Case:2")
+--				print ("Message count:" + a_message.count.out)
+--				l_frame.append_code ((0x80 | a_opcode).to_natural_32)
+--				l_frame.append_code ((0x80 | 126).to_natural_32)
+--				l_frame.append_code (((a_message.count ) |>> 8).as_natural_32)
+--				l_frame.append_code ((a_message.count).to_character_8.code.as_natural_32)
+--				print ("%NHeaderMessage:" + l_frame)
+--			else
+--				print("%N Case:3")
+--				print ("Message count:" + a_message.count.out)
+--				l_frame.append_code ((0x80 | a_opcode).to_natural_32)
+--				l_frame.append_code ((0x80 | a_message.count).to_natural_32)
+--			end
+--			
+--			l_key := new_key
+--			l_frame.append (l_key.substring (1, 4))
+--			l_message := implementation.unmmask (a_message, l_key.substring (1, 4))
+--			l_frame.append (l_message)
+--			socket.send_message (l_frame)
+--		end
+
+	do_send (a_opcode:INTEGER; a_message: READABLE_STRING_8)
+		local
+			i: INTEGER
+			l_chunk_size: INTEGER
+			l_chunk: READABLE_STRING_8
+			l_header_message: STRING
+			l_message_count: INTEGER
+			n: NATURAL_64
+			retried: BOOLEAN
+			l_message : STRING
+			l_key: STRING
+		do
+			if not retried then
+				create l_header_message.make_empty
+				l_header_message.append_code ((0x80 | a_opcode).to_natural_32)
+				l_message_count := a_message.count
+				n := l_message_count.to_natural_64
+				if l_message_count > 0xffff then
+						--! Improve. this code needs to be checked.
+					l_header_message.append_code ((0x80 | 127).to_natural_32)
+					l_header_message.append_character ((n |>> 56).to_character_8)
+					l_header_message.append_character ((n |>> 48).to_character_8)
+					l_header_message.append_character ((n |>> 40).to_character_8)
+					l_header_message.append_character ((n |>> 32).to_character_8)
+					l_header_message.append_character ((n |>> 24).to_character_8)
+					l_header_message.append_character ((n |>> 16).to_character_8)
+					l_header_message.append_character ((n |>> 8).to_character_8)
+					l_header_message.append_character ( n.to_character_8)
+				elseif l_message_count > 125 then
+					l_header_message.append_code ((0x80 | 126).to_natural_32)
+					l_header_message.append_code ((n |>> 8).as_natural_32)
+					l_header_message.append_character (n.to_character_8)
+				else
+					l_header_message.append_code ((0x80 | n).as_natural_32)
+				end
+
+				l_key := new_key
+				l_header_message.append (l_key.substring (1, 4))
+
+				socket.put_string (l_header_message)
+
+				l_message := implementation.unmmask (a_message, l_key.substring (1, 4))
+
+
+				l_chunk_size := 16_384 -- 16K
+				if l_message_count < l_chunk_size  then
+					socket.put_string (l_message)
+				else
+					from
+						i := 0
+					until
+						l_chunk_size = 0
+					loop
+						debug ("ws")
+							print ("Sending chunk " + (i + 1).out + " -> " + (i + l_chunk_size).out +" / " + l_message_count.out + "%N")
+						end
+						l_chunk := l_message.substring (i + 1, l_message_count.min (i + l_chunk_size))
+						socket.put_string (l_chunk)
+						if l_chunk.count < l_chunk_size then
+							l_chunk_size := 0
+						end
+						i := i + l_chunk_size
+					end
+					debug ("ws")
+						print ("Sending chunk done%N")
+					end
+				end
 			else
-				print("%N Case:3")
-				print ("Message count:" + a_message.count.out)
-				l_frame.append_code ((0x80 | a_opcode).to_natural_32)
-				l_frame.append_code ((0x80 | a_message.count).to_natural_32)
+					-- FIXME: what should be done on rescue?
 			end
-			
-			l_key := new_key
-			l_frame.append (l_key.substring (1, 4))
-			l_message := implementation.unmmask (a_message, l_key.substring (1, 4))
-			l_frame.append (l_message)
-			socket.send_message (l_frame)
+		rescue
+			retried := True
+			io.put_string ("Internal error in " + generator + ".do_send (conn, a_opcode=" + a_opcode.out + ", a_message) !%N")
+			retry
 		end
 
 	new_key: STRING

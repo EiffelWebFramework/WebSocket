@@ -92,6 +92,7 @@ feature {NONE} -- Implementation
 			l_message_count: INTEGER
 			n: NATURAL_64
 			retried: BOOLEAN
+			l_key: STRING
 		do
 			if not retried then
 				create l_header_message.make_empty
@@ -118,6 +119,7 @@ feature {NONE} -- Implementation
 				end
 				conn.put_string (l_header_message)
 
+	
 				l_chunk_size := 16_384 -- 16K
 				if l_message_count < l_chunk_size then
 					conn.put_string (a_message)
