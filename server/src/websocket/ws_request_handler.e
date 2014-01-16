@@ -26,11 +26,9 @@ feature {NONE} -- Initialization
 			is_verbose := True -- HACK: for dev time, always log
 		end
 
-feature {CONCURRENT_POOL, HTTP_CONNECTION_HANDLER_I} -- Basic operation		
+feature {HTTP_CONNECTION_HANDLER_I} -- Basic operation		
 
 	release
-		local
-			d: STRING
 		do
 			Precursor {HTTP_REQUEST_HANDLER}
 			on_close (client_socket)
