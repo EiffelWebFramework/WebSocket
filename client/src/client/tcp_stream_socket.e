@@ -19,6 +19,7 @@ feature {NONE} -- Initialization
 		do
 			last_string := ""
 			create {NETWORK_STREAM_SOCKET} socket.make_client_by_port (a_peer_port, a_peer_host)
+			socket.set_blocking
 		end
 
 
@@ -28,6 +29,7 @@ feature {NONE} -- Initialization
 		do
 			last_string := ""
 			create {NETWORK_STREAM_SOCKET} socket.make_client_by_address_and_port (a_peer_address, a_peer_port)
+			socket.set_blocking
 		end
 
 
@@ -119,6 +121,12 @@ feature -- Access
 
 	last_string : STRING
 
+	bytes_read: INTEGER
+		do
+			if attached socket as l_socket then
+				Result := l_socket.bytes_read
+			end
+		end
 
 feature -- Status report
 
@@ -129,6 +137,16 @@ feature -- Status report
 			end
 		end
 
+	is_blocking: BOOLEAN
+		do
+			if attached {TCP_STREAM_SOCKET} socket as l_socket then
+				Result := l_socket.is_blocking
+			elseif attached {SSL_NETWORK_STREAM_SOCKET} socket as l_ssl_socket then
+				Result := l_ssl_socket.is_blocking
+			elseif attached socket as l_socket then
+				Result := l_socket.is_blocking
+			end
+		end
 
 	is_open_read: BOOLEAN
 		do
