@@ -36,17 +36,11 @@ feature {NONE} -- Initialization
 	make_ssl_client_by_port (a_peer_port: INTEGER; a_peer_host: STRING)
 			-- Create a client connection to `a_peer_host' on
 			-- `a_peer_port'
-		local
-			a_file_name: FILE_NAME
 		do
 			last_string := ""
 			create {SSL_NETWORK_STREAM_SOCKET} socket.make_client_by_port (a_peer_port, a_peer_host)
 
 			if attached {SSL_NETWORK_STREAM_SOCKET} socket as l_ssl then
---				create a_file_name.make_from_string ("C:/OpenSSL-Win64/bin/ca.crt")
---				l_ssl.set_certificate_file_name (a_file_name)
---				create a_file_name.make_from_string ("C:/OpenSSL-Win64/bin/ca.key")
---				l_ssl.set_key_file_name (a_file_name)
 				l_ssl.set_tls_protocol ({SSL_PROTOCOL}.ssl_23)
 				l_ssl.set_blocking
 			end

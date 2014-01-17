@@ -206,6 +206,7 @@ feature -- Execute
 				socket.close
 			end
 		rescue
+			on_websocket_close ("")
 			socket.close
 		end
 
