@@ -38,6 +38,8 @@ feature -- Access
 
 	count: INTEGER
 
+	is_closed: BOOLEAN
+
 feature -- Event
 
 	on_open (a_message: STRING)
@@ -60,6 +62,7 @@ feature -- Event
 		do
 			ready_state.set_state ({WEB_SOCKET_READY_STATE}.closed)
 			print ("Closed: " + a_code.out + " - " + a_reason)
+			is_closed := True
 		end
 
 	on_error (a_error: STRING)

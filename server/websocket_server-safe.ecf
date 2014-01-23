@@ -24,6 +24,7 @@
 		</library>
 		<library name="time" location="$ISE_LIBRARY\library\time\time-safe.ecf"/>
 		<cluster name="websocket_server" location=".\src\websocket" recursive="true"/>
+		<cluster name="protocol" location="..\protocol" recursive="true"/>
 		<cluster name="httpd_server" location=".\src\httpd" recursive="true">
 			<file_rule>
 				<exclude>/concurrency$</exclude>

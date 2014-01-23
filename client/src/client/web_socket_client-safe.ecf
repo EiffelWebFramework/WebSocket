@@ -13,6 +13,7 @@
 		<library name="thread" location="$ISE_LIBRARY\library\thread\thread-safe.ecf"/>
 		<library name="uri" location="$ISE_LIBRARY\library\text\uri\uri-safe.ecf"/>
 		<library name="net_ssl" location="$EIFFEL_LIBRARY\eiffel_net_openssl\net_ssl-safe.ecf"/>
+		<cluster name="protocol" location="..\..\..\protocol" recursive="true"/>
 		<cluster name="web_socket_client" location=".\" recursive="true">
 			<file_rule>
 				<exclude>/EIFGENs$</exclude>
