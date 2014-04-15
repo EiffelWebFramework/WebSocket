@@ -21,7 +21,7 @@ feature {NONE} -- Initialization
 			l_env: EXECUTION_ENVIRONMENT
 		do
 			create l_env
-			across  1 |..| 300 as c  loop
+			across  1 |..| 305 as c  loop
 				create ws_client.make_with_host_port_path ("ws://127.0.0.1", 9001, "/runCase?case="+c.item.out+"&agent=eiffel/websocket" )
 				from
 					ws_client.launch
