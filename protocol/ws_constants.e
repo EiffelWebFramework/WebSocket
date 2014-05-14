@@ -4,7 +4,7 @@ note
 	revision: "$Revision$"
 
 class
-	WEB_SOCKET_CONSTANTS
+	WS_CONSTANTS
 
 feature -- Constants
 

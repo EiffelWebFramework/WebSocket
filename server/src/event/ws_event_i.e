@@ -7,10 +7,10 @@ note
 	revision: "$Revision$"
 
 deferred class
-	WEB_SOCKET_EVENT_I
+	WS_EVENT_I
 
 inherit
-	WEB_SOCKET_CONSTANTS
+	WS_CONSTANTS
 
 	REFACTORING_HELPER
 

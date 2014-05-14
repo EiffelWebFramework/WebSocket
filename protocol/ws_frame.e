@@ -34,7 +34,7 @@ class
 inherit
 	ANY
 
-	WEB_SOCKET_CONSTANTS
+	WS_CONSTANTS
 
 create
 	make,

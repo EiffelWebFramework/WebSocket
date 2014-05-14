@@ -13,8 +13,8 @@
 		<library name="net_ssl" location="$ISE_LIBRARY\unstable\library\network\socket\netssl\net_ssl-safe.ecf"/>
 		<library name="thread" location="$ISE_LIBRARY\library\thread\thread-safe.ecf"/>
 		<library name="uri" location="$ISE_LIBRARY\library\text\uri\uri-safe.ecf"/>
-		<cluster name="protocol" location="..\..\..\protocol\" recursive="true"/>
-		<cluster name="web_socket_client" location=".\" recursive="true">
+		<cluster name="protocol" location="..\protocol\" recursive="true"/>
+		<cluster name="web_socket_client" location=".\src" recursive="true">
 			<file_rule>
 				<exclude>/EIFGENs$</exclude>
 				<exclude>/CVS$</exclude>

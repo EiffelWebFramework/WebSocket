@@ -12,7 +12,7 @@ deferred class
 
 inherit
 
-	WEB_SOCKET_CONSTANTS
+	WS_CONSTANTS
 
 feature -- Access
 

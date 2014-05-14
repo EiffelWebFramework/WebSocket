@@ -9,7 +9,7 @@ note
 	EIS: "name=Control Frame", "src=http://tools.ietf.org/html/rfc6455#section-5.5", "protocol=uri"
 
 class
-	WEB_SOCKET_MESSAGE_TYPE
+	WS_MESSAGE_TYPE
 
 feature -- Data Frames
 
