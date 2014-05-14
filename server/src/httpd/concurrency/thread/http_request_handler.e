@@ -22,7 +22,7 @@ feature -- Change
 			client_socket := a_socket
 		end
 
-feature {CONCURRENT_POOL, HTTP_CONNECTION_HANDLER_I} -- Basic operation		
+feature {HTTP_CONNECTION_HANDLER_I} -- Basic operation		
 
 	release
 		local

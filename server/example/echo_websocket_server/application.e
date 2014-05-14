@@ -20,21 +20,16 @@ feature {NONE} -- Initialization
 			-- Run application.
 		local
 			app_cfg: APPLICATION_CONFIGURATION
-			l_cfg: HTTP_SERVER_CONFIGURATION
+			cfg: HTTP_SERVER_CONFIGURATION
 		do
 			create app_cfg.make
 			app_cfg.set_document_root (default_document_root)
 			set_app_configuration (app_cfg)
 
-			create l_cfg.make
-			setup (l_cfg, a_port)
---			l_cfg.mark_secure
---				-- Change the following files to your own files.
---			l_cfg.set_ca_crt ("C:\OpenSSL-Win64\bin\ca.crt")
---			l_cfg.set_ca_key ("C:\OpenSSL-Win64\bin\ca.key")
---			l_cfg.set_ssl_protocol ({SSL_PROTOCOL}.ssl_3)
+			create cfg.make
+			setup (cfg, a_port)
 
-			create server.make (l_cfg, create {separate APPLICATION_FACTORY})
+			create server.make (cfg, create {separate APPLICATION_FACTORY})
 		end
 
 	make
@@ -50,6 +45,13 @@ feature {NONE} -- Initialization
 
 	setup (a_cfg: HTTP_SERVER_CONFIGURATION; a_port: INTEGER)
 		do
+			if a_cfg.has_ssl_support then
+				a_cfg.mark_secure
+				a_cfg.set_ca_crt ("C:\OpenSSL-Win64\bin\ca.crt") -- Change to use your own crt file.
+				a_cfg.set_ca_key ("C:\OpenSSL-Win64\bin\ca.key") -- Change to use your own key file.
+				a_cfg.set_ssl_protocol_to_ssl_3
+			end
+			
 			a_cfg.http_server_port := a_port
 			a_cfg.set_max_concurrent_connections (50)
 			debug ("nino")

@@ -10,7 +10,6 @@ deferred class
 	WEB_SOCKET_EVENT_I
 
 inherit
-
 	WEB_SOCKET_CONSTANTS
 
 	REFACTORING_HELPER

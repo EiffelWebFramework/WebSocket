@@ -1,11 +1,10 @@
 note
-	description: "Summary description for {HTTP_SERVER}."
-	author: ""
+	description: "Summary description for {HTTP_SERVER_I}."
 	date: "$Date$"
 	revision: "$Revision$"
 
-class
-	HTTP_SERVER
+deferred class
+	HTTP_SERVER_I
 
 inherit
 	HTTP_CONSTANTS
@@ -14,22 +13,23 @@ inherit
 
 	HTTP_SERVER_LOGGER
 
-create
-	make
-
 feature {NONE} -- Initialization
 
-	make (a_cfg: HTTP_SERVER_CONFIGURATION; a_factory: like factory)
+	make (a_cfg: detachable like configuration; a_factory: like factory)
 			-- `a_cfg': server configuration
 			-- `a_factory': connection handler builder
 		do
-			configuration := a_cfg
+			if a_cfg = Void then
+				create configuration.make
+			else
+				configuration := a_cfg
+			end
 			factory := a_factory
 			output := io.error
 
 			build_controller
 
-			import_configuration (a_cfg)
+			apply_configuration
 
 			initialize
 		end
@@ -140,17 +140,9 @@ feature -- Listening
 				attached configuration.http_server_name as l_servername and then
 				attached (create {INET_ADDRESS_FACTORY}).create_from_name (l_servername) as l_addr
 			then
-				if configuration.is_secure then
-					create l_listening_socket.make_ssl_server_by_address_and_port (l_addr, l_http_port, configuration.ssl_protocol, configuration.ca_crt, configuration.ca_key)
-				else
-					create l_listening_socket.make_server_by_address_and_port (l_addr, l_http_port)
-				end
+				l_listening_socket := new_listening_socket (l_addr, l_http_port)
 			else
-				if configuration.is_secure then
-					create l_listening_socket.make_ssl_server_by_port (l_http_port,configuration.ssl_protocol, configuration.ca_crt, configuration.ca_key)
-				else
-					create l_listening_socket.make_server_by_port (l_http_port)
-				end
+				l_listening_socket := new_listening_socket (Void, l_http_port)
 			end
 
 			if not l_listening_socket.is_bound then
@@ -218,6 +210,17 @@ feature -- Listening
 			retry
 		end
 
+feature {NONE} -- Factory
+
+	new_listening_socket (a_addr: detachable INET_ADDRESS; a_http_port: INTEGER): HTTP_STREAM_SOCKET
+		do
+			if a_addr /= Void then
+				create Result.make_server_by_address_and_port (a_addr, a_http_port)
+			else
+				create Result.make_server_by_port (a_http_port)
+			end
+		end
+
 feature {NONE} -- Helpers
 
 	wait_for_connection_handler_completion (h: HTTP_CONNECTION_HANDLER)
@@ -247,7 +250,6 @@ feature {NONE} -- Helpers
 			Result := a_controller.shutdown_requested
 		end
 
-
 feature -- Event
 
 	on_launched (a_port: INTEGER)
@@ -272,11 +274,13 @@ feature -- Event
 			stopped: not is_launched
 		end
 
-feature {NONE} -- Configuration: initialization
+feature -- Configuration change
 
-	import_configuration (cfg: HTTP_SERVER_CONFIGURATION)
+	apply_configuration
+		require
+			is_not_launched: not is_launched
 		do
-			is_verbose := cfg.is_verbose
+			is_verbose := configuration.is_verbose
 		end
 
 feature -- Output
