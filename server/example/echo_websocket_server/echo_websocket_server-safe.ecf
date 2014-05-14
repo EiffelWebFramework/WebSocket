@@ -11,13 +11,15 @@
 			<debug name="ws" enabled="true"/>
 			<assertions precondition="true" postcondition="true" check="true" invariant="true" loop="true" supplier_precondition="true"/>
 		</option>
+
+		<variable name="httpd_ssl_disabled" value="true"/>
+
 		<library name="base" location="$ISE_LIBRARY\library\base\base-safe.ecf">
 			<option>
 				<assertions precondition="true"/>
 			</option>
 		</library>
-		<library name="net" location="$ISE_LIBRARY\library\net\net-safe.ecf"/>
-		<library name="net_ssl" location="$ISE_LIBRARY\unstable\library\network\socket\netssl\net_ssl-safe.ecf"/>
+		<library name="httpd" location="..\..\src\httpd\httpd-safe.ecf" readonly="false"/>
 		<library name="websocket_server" location="..\..\websocket_server-safe.ecf" readonly="false">
 			<option debug="true">
 				<debug name="ws" enabled="true"/>

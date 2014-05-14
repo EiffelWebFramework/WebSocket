@@ -1,13 +1,10 @@
 note
-	description: "Summary description for {HTTP_SERVER_CONFIGURATION}."
+	description: "Summary description for {HTTP_SERVER_CONFIGURATION_I}."
 	date: "$Date$"
 	revision: "$Revision$"
 
-class
-	HTTP_SERVER_CONFIGURATION
-
-create
-	make
+deferred class
+	HTTP_SERVER_CONFIGURATION_I
 
 feature {NONE} -- Initialization
 
@@ -22,12 +19,13 @@ feature {NONE} -- Initialization
 			is_secure := False
 			create ca_crt.make_empty
 			create ca_key.make_empty
-			ssl_protocol := {SSL_PROTOCOL}.tls_1_2
 		end
 
 feature -- Access
 
-	Server_details: STRING_8 = "Server : NINO Eiffel Server"
+	Server_details: STRING_8
+		deferred
+		end
 
 	http_server_name: detachable READABLE_STRING_8 assign set_http_server_name
 	http_server_port: INTEGER assign set_http_server_port
@@ -47,12 +45,19 @@ feature -- Access
 			-- Persistent connection timeout
 			-- Timeout unit in Seconds.
 
+	has_ssl_support: BOOLEAN
+			-- Has SSL support?
+		deferred
+		end
+
+feature -- Access: SSL
+
 	is_secure: BOOLEAN
 			 -- Is SSL/TLS session?.
 
-	ca_crt: STRING;
+	ca_crt: STRING
 
-	ca_key: STRING;
+	ca_key: STRING
 
 	ssl_protocol: NATURAL
 		-- By default protocol is tls 1.2.
@@ -106,7 +111,6 @@ feature -- Element change
 			is_verbose := b
 		end
 
-
 	set_keep_alive_timeout (a_seconds: like keep_alive_timeout)
 			-- Set `keep_alive_timeout' with `a_seconds'
 		do
@@ -115,16 +119,28 @@ feature -- Element change
 			keep_alive_timeout_set: keep_alive_timeout = a_seconds
 		end
 
+	mark_secure
+			-- Set is_secure in True
+		do
+			if has_ssl_support then
+				is_secure := True
+				if http_server_port = 80 then
+					set_http_server_port (443)
+				end
+			else
+				is_secure := False
+			end
+		end
+
+feature -- Element change
 
 	set_ca_crt (a_value: STRING)
 			-- Set `ca_crt' with `a_value'
 		do
 			ca_crt := a_value
 		ensure
-
 			ca_crt_set: ca_crt = a_value
 		end
-
 
 	set_ca_key (a_value: STRING)
 			-- Set `ca_key' with `a_value'
@@ -142,12 +158,37 @@ feature -- Element change
 			ssl_protocol_set: ssl_protocol = a_version
 		end
 
-	mark_secure
-			-- Set is_secure in True
-		do
-			is_secure := True
+feature -- SSL Helpers
+
+	set_ssl_protocol_to_ssl_2_or_3
+			-- Set `ssl_protocol' with `Ssl_23'.
+		deferred
 		end
 
+	set_ssl_protocol_to_ssl_3
+			-- Set `ssl_protocol' with `Ssl_3'.
+		deferred
+		end
+
+	set_ssl_protocol_to_tls_1_0
+			-- Set `ssl_protocol' with `Tls_1_0'.
+		deferred
+		end
+
+	set_ssl_protocol_to_tls_1_1
+			-- Set `ssl_protocol' with `Tls_1_1'.
+		deferred
+		end
+
+	set_ssl_protocol_to_tls_1_2
+			-- Set `ssl_protocol' with `Tls_1_2'.
+		deferred
+		end
+
+	set_ssl_protocol_to_dtls_1_0
+			-- Set `ssl_protocol' with `Dtls_1_0'.
+		deferred
+		end
 
 note
 	copyright: "2011-2013, Javier Velilla, Jocelyn Fiat and others"

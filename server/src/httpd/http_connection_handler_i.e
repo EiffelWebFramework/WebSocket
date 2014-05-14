@@ -32,9 +32,9 @@ feature {NONE} -- Access
 
 	factory: separate HTTP_REQUEST_HANDLER_FACTORY
 
-	server: separate HTTP_SERVER
+	server: separate HTTP_SERVER_I
 
-feature {HTTP_SERVER} -- Execution
+feature {HTTP_SERVER_I} -- Execution
 
 	process_incoming_connection (a_socket: HTTP_STREAM_SOCKET)
 		deferred
