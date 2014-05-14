@@ -12,7 +12,6 @@
 			<assertions precondition="true" postcondition="true" check="true" invariant="true" loop="true" supplier_precondition="true"/>
 		</option>
 
-		<variable name="httpd_ssl_disabled" value="true"/>
 
 		<library name="base" location="$ISE_LIBRARY\library\base\base-safe.ecf">
 			<option>
@@ -31,8 +30,15 @@
 		<root class="APPLICATION" feature="make"/>
 		<setting name="concurrency" value="thread"/>
 	</target>
+	<target name="echo_websocket_server_mt_no_ssl" extends="echo_websocket_server_mt">
+		<variable name="httpd_ssl_disabled" value="true"/>
+	</target>
+
 	<target name="echo_websocket_server_scoop" extends="common">
 		<root class="APPLICATION" feature="make"/>
 		<setting name="concurrency" value="scoop"/>
+	</target>
+	<target name="echo_websocket_server_scoop_no_ssl" extends="echo_websocket_server_scoop">
+		<variable name="httpd_ssl_disabled" value="true"/>
 	</target>
 </system>
