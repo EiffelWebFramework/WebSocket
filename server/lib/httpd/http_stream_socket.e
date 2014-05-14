@@ -41,20 +41,14 @@ feature -- Access
 
 	last_string: STRING
 		do
-			if attached socket as l_socket then
-				Result := l_socket.last_string
-			else
-				Result := ""
-			end
+			Result := socket.last_string
 		end
 
 	peer_address: detachable NETWORK_SOCKET_ADDRESS
 			-- Peer address of socket
 		do
-			if attached socket as l_socket then
-				if attached {NETWORK_SOCKET_ADDRESS} l_socket.peer_address as l_peer_address then
-					Result := l_peer_address
-				end
+			if attached {NETWORK_SOCKET_ADDRESS} socket.peer_address as l_peer_address then
+				Result := l_peer_address
 			end
 		end
 
@@ -62,32 +56,24 @@ feature -- Input
 
 	read_line_thread_aware
 		do
-			if attached socket as l_socket then
-				l_socket.read_line_thread_aware
-			end
+			socket.read_line_thread_aware
 		end
 
 	read_stream (nb: INTEGER)
 		do
-			if attached socket as l_socket then
-				l_socket.read_stream (nb)
-			end
+			socket.read_stream (nb)
 		end
 
 	bytes_read: INTEGER
 		do
-			if attached socket as l_socket then
-				Result := l_socket.bytes_read
-			end
+			Result := socket.bytes_read
 		end
 
 feature -- Output
 
 	put_string (s: STRING)
 		do
-			if attached socket as l_socket then
-				l_socket.put_string (s)
-			end
+			socket.put_string (s)
 		end
 
 	send_message (a_msg: STRING)
@@ -103,9 +89,7 @@ feature -- Status Report
 
 	descriptor: INTEGER
 		do
-			if attached socket as l_socket then
-				Result := l_socket.descriptor
-			end
+			Result := socket.descriptor
 		end
 
 	port: INTEGER
@@ -195,10 +179,8 @@ feature -- Status Report
 
 	accepted: detachable HTTP_STREAM_SOCKET
 		do
-			if attached {TCP_STREAM_SOCKET} socket as l_socket then
-				if attached l_socket.accepted as l_accepted then
-					create Result.make (l_accepted)
-				end
+			if attached socket.accepted as l_accepted then
+				create Result.make (l_accepted)
 			end
 		end
 

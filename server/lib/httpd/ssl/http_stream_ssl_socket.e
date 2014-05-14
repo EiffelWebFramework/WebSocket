@@ -17,12 +17,11 @@ inherit
 			port,
 			is_bound,
 			ready_for_writing,
-			ready_for_reading,
-			accepted
+			ready_for_reading
 		end
 
 create
-	make_ssl_server_by_address_and_port, make_ssl_server_by_port, 
+	make_ssl_server_by_address_and_port, make_ssl_server_by_port,
 	make_server_by_address_and_port, make_server_by_port, make_from_separate
 
 create {HTTP_STREAM_SOCKET}
@@ -116,17 +115,6 @@ feature -- Status Report
 				Result := l_socket.ready_for_reading
 			elseif attached {SSL_TCP_STREAM_SOCKET} socket as l_ssl_socket then
 				Result := l_ssl_socket.ready_for_reading
-			end
-		end
-
-	accepted: detachable HTTP_STREAM_SOCKET
-		do
-			if attached {SSL_TCP_STREAM_SOCKET} socket as l_ssl_socket then
-				if attached l_ssl_socket.accepted as l_accepted then
-					create Result.make (l_accepted)
-				end
-			elseif attached {TCP_STREAM_SOCKET} socket then
-				Result := Precursor
 			end
 		end
 

@@ -19,13 +19,13 @@ feature -- Initialization
 	make (a_uri: STRING; a_protocols: detachable LIST [STRING])
 		do
 			initialize (a_uri, a_protocols)
-			create implementation.make (create {NULL_WS_CLIENT}, a_uri)
+			create implementation.make (create {WEB_SOCKET_NULL_CLIENT}, a_uri)
 		end
 
 	make_with_port (a_uri: STRING; a_port: INTEGER; a_protocols: detachable LIST [STRING])
 		do
 			initialize_with_port (a_uri, a_port, a_protocols)
-			create implementation.make (create {NULL_WS_CLIENT}, a_uri)
+			create implementation.make (create {WEB_SOCKET_NULL_CLIENT}, a_uri)
 		end
 
 feature -- Access

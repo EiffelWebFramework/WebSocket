@@ -8,7 +8,7 @@ deferred class
 	WS_REQUEST_HANDLER
 
 inherit
-	WEB_SOCKET_EVENT_I
+	WS_EVENT_I
 
 	SHARED_BASE64
 

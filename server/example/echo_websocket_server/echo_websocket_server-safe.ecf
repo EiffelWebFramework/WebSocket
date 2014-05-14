@@ -18,7 +18,7 @@
 				<assertions precondition="true"/>
 			</option>
 		</library>
-		<library name="httpd" location="..\..\src\httpd\httpd-safe.ecf" readonly="false"/>
+		<library name="httpd" location="..\..\lib\httpd\httpd-safe.ecf" readonly="false"/>
 		<library name="websocket_server" location="..\..\websocket_server-safe.ecf" readonly="false">
 			<option debug="true">
 				<debug name="ws" enabled="true"/>
