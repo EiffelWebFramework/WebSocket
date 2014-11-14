@@ -57,9 +57,9 @@ feature -- Request processing
 			else
 				process_http_request (a_socket)
 			end
-			release
+--			release
 		rescue
-			release
+--			release
 		end
 
 feature -- Request processing

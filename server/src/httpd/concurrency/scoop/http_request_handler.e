@@ -72,7 +72,6 @@ feature {CONCURRENT_POOL, HTTP_CONNECTION_HANDLER_I} -- Basic operation
 				debug ("dbglog")
 					dbglog (generator + ".release: ENTER {" + d + "}")
 				end
-				on_close (l_socket)
 				Precursor {HTTP_REQUEST_HANDLER_I}
 				Precursor {CONCURRENT_POOL_ITEM}
 				debug ("dbglog")
