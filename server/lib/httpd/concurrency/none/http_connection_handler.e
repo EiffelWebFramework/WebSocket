@@ -31,12 +31,12 @@ feature -- Access
 
 feature -- Execution
 
-	process_incoming_connection (a_socket: TCP_STREAM_SOCKET)
+	process_incoming_connection (a_socket: HTTP_STREAM_SOCKET)
 		do
 			process_connection (a_socket)
 		end
 
-	process_connection (a_socket: TCP_STREAM_SOCKET)
+	process_connection (a_socket: HTTP_STREAM_SOCKET)
 			-- Process incoming connection
 			-- note that the precondition matters for scoop synchronization.
 		do
@@ -52,7 +52,7 @@ feature -- Execution
 			update_is_shutdown_requested
 		end
 
-	process_connection_handler (hdl: separate HTTP_REQUEST_HANDLER; a_socket: TCP_STREAM_SOCKET)
+	process_connection_handler (hdl: separate HTTP_REQUEST_HANDLER; a_socket: HTTP_STREAM_SOCKET)
 		require
 			not hdl.has_error
 		do
@@ -85,7 +85,7 @@ feature -- Execution
 			end
 		end
 
-feature {HTTP_SERVER} -- Status report
+feature {HTTP_SERVER_I} -- Status report
 
 	wait_for_completion
 			-- Wait until Current is ready for shutdown

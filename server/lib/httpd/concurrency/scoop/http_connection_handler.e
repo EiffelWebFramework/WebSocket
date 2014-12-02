@@ -42,7 +42,7 @@ feature -- Access
 			Result := a_server.configuration.max_concurrent_connections
 		end
 
-feature {HTTP_SERVER} -- Execution
+feature {HTTP_SERVER_I} -- Execution
 
 	shutdown
 		do
@@ -116,7 +116,7 @@ feature {HTTP_SERVER} -- Execution
 			a_socket.cleanup
 		end
 
-feature {HTTP_SERVER} -- Status report
+feature {HTTP_SERVER_I} -- Status report
 
 	wait_for_completion
 			-- Wait until Current is ready for shutdown

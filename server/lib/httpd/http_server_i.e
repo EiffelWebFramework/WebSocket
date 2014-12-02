@@ -295,7 +295,7 @@ feature -- Output
 	log (a_message: separate READABLE_STRING_8)
 			-- Log `a_message'
 		do
-			output.put_string (a_message)
+			output.put_string (create {STRING}.make_from_separate (a_message))
 			output.put_new_line
 		end
 

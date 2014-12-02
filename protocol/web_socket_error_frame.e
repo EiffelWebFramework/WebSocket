@@ -1,11 +1,11 @@
 note
-	description: "Summary description for {WS_ERROR_FRAME}."
+	description: "Summary description for {WEB_SOCKET_ERROR_FRAME}."
 	author: ""
 	date: "$Date$"
 	revision: "$Revision$"
 
 class
-	WS_ERROR_FRAME
+	WEB_SOCKET_ERROR_FRAME
 
 create
 	make

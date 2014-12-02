@@ -74,12 +74,10 @@ feature -- Basic operation
 
 
 	send_message (a_msg: STRING)
-		local
-			a_package: PACKET
-			a_data: MANAGED_POINTER
-			c_string: C_STRING
 		do
-			print ("%NClient send message:" + a_msg)
+			debug ("web_socket")
+				print ("%NClient send message:" + a_msg)
+			end
 			socket.put_string (a_msg)
 		end
 

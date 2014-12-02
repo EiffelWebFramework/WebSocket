@@ -19,19 +19,19 @@ feature -- Initialization
 	make (a_uri: STRING)
 		do
 			initialize (a_uri, Void)
-			create implementation.make (create {NULL_WS_CLIENT}, a_uri)
+			create implementation.make (create {WEB_SOCKET_NULL_CLIENT}, a_uri)
 		end
 
 	make_with_port (a_uri: STRING; a_port: INTEGER)
 		do
 			initialize_with_port (a_uri, a_port, Void)
-			create implementation.make (create {NULL_WS_CLIENT}, a_uri)
+			create implementation.make (create {WEB_SOCKET_NULL_CLIENT}, a_uri)
 		end
 
 	make_with_host_port_path (a_host: STRING; a_port: INTEGER; a_path: STRING)
 		do
 			initialize_with_host_port_and_path (a_host, a_port, a_path)
-			create implementation.make (create {NULL_WS_CLIENT}, a_host)
+			create implementation.make (create {WEB_SOCKET_NULL_CLIENT}, a_host)
 		end
 
 feature -- Access

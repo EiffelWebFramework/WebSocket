@@ -213,8 +213,6 @@ feature -- Execute
 feature -- Methods
 
 	send (a_message: STRING)
-		local
-			l_message: STRING
 		do
 			do_send (1, a_message)
 		end
@@ -233,8 +231,6 @@ feature -- Methods
 
 	close_with_description (a_id: INTEGER; a_description: READABLE_STRING_GENERAL)
 			-- Close a websocket connection with a close id : `a_id' and a description `a_description'
-		local
-			env: EXECUTION_ENVIRONMENT
 		do
 			do_send (8, "")
 			ready_state.set_state ({WEB_SOCKET_READY_STATE}.closed)
@@ -250,7 +246,6 @@ feature {NONE} -- Implementation
 	send_handshake
 		local
 			l_uri: URI
-			l_data: WEB_SOCKET_HANDSHAKE_DATA
 			l_handshake: STRING
 			l_random: SALT_XOR_SHIFT_64_GENERATOR
 			l_secure_protocol: STRING
@@ -376,7 +371,6 @@ feature -- Parse Request line
 			line: detachable STRING
 			k, val: STRING
 			txt: STRING
-			l_is_verbose: BOOLEAN
 		do
 			create txt.make (64)
 			server_handshake.set_request_header (txt)

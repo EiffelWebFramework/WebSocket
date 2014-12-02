@@ -12,7 +12,7 @@ inherit
 
 feature -- Change
 
-	set_client_socket (a_socket: separate TCP_STREAM_SOCKET)
+	set_client_socket (a_socket: separate HTTP_STREAM_SOCKET)
 		do
 			client_socket := a_socket
 		end

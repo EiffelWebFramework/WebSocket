@@ -1,229 +1,172 @@
 note
-	description: "Summary description for {WEB_SOCKET_IMPL}."
+	description: "Summary description for {WEB_SOCKET_REQUEST_HANDLER}."
 	author: ""
 	date: "$Date$"
 	revision: "$Revision$"
 
-class
-	WEB_SOCKET_IMPL
+deferred class
+	WEB_SOCKET_REQUEST_HANDLER
 
 inherit
+	WEB_SOCKET_EVENT_I
 
-	WEB_SOCKET
+	SHARED_BASE64
 
-create
-	make, make_with_port, make_with_protocols, make_with_protocols_and_port
+	HTTP_REQUEST_HANDLER
+		redefine
+			reset, release
+		end
 
 feature {NONE} -- Initialization
 
-	make (a_subscriber: WEB_SOCKET_SUBSCRIBER; a_uri: READABLE_STRING_GENERAL)
-			-- Create a websocket instante with a default port.
-		do
-			reset
-			subscriber := a_subscriber
-			uri := a_uri
-			create protocol.make_empty
-			set_default_port
-			create ready_state.make
-		ensure
-			uri_set: a_uri = uri
-			port_wss: is_tunneled implies port = wss_port_default
-			port_ws: not is_tunneled implies port = ws_port_default
-			ready_state_set: ready_state.state = {WEB_SOCKET_READY_STATE}.connecting
-			subscriber_set: subscriber = a_subscriber
-			protocol_set: protocol.is_empty
-		end
-
-	make_with_port (a_subscriber: WEB_SOCKET_SUBSCRIBER; a_uri: READABLE_STRING_GENERAL; a_port: INTEGER)
-			-- Create a websocket instance with port `a_port',
-		do
-			make (a_subscriber, a_uri)
-			port := a_port
-		ensure
-			uri_set: a_uri = uri
-			port_set: port = a_port
-			ready_state_set: ready_state.state = {WEB_SOCKET_READY_STATE}.connecting
-			subscriber_set: subscriber = a_subscriber
-		end
-
-	make_with_protocols (a_subscriber: WEB_SOCKET_SUBSCRIBER; a_uri: READABLE_STRING_GENERAL; a_protocols: detachable LIST [STRING])
-			-- Create a web socket instance with a list of protocols `a_protocols' and default port.
-		do
-			reset
-			subscriber := a_subscriber
-			uri := a_uri
-			create protocol.make_empty
-			protocols := a_protocols
-			set_default_port
-			create ready_state.make
-		ensure
-			uri_set: a_uri = uri
-			port_wss: is_tunneled implies port = wss_port_default
-			port_ws: not is_tunneled implies port = ws_port_default
-			protocols_set: protocols = a_protocols
-			ready_state_set: ready_state.state = {WEB_SOCKET_READY_STATE}.connecting
-			subscriber_set: subscriber = a_subscriber
-			protocol_set: protocol.is_empty
-		end
-
-	make_with_protocols_and_port (a_subscriber: WEB_SOCKET_SUBSCRIBER; a_uri: READABLE_STRING_GENERAL; a_protocols: detachable LIST [STRING]; a_port: INTEGER)
-			-- Create a web socket instance with a list of protocols `a_protocols' and port `a_port'.
-		do
-			make_with_protocols (a_subscriber, a_uri, a_protocols)
-			port := a_port
-		ensure
-			uri_set: a_uri = uri
-			protocols_set: protocols = a_protocols
-			port_set: port = a_port
-			ready_state_set: ready_state.state = {WEB_SOCKET_READY_STATE}.connecting
-			subscriber_set: subscriber = a_subscriber
-		end
-
 	reset
 		do
-			has_error := False
+			Precursor
+			is_websocket := False
+			is_verbose := True -- HACK: for dev time, always log
+		end
+
+feature {HTTP_CONNECTION_HANDLER_I} -- Basic operation		
+
+	release
+		do
+			Precursor {HTTP_REQUEST_HANDLER}
+			on_close (client_socket)
 		end
 
 feature -- Access
 
-	has_error: BOOLEAN
+	is_websocket: BOOLEAN
+			-- Is the websocket handshake already done?
 
-	is_verbose: BOOLEAN
+feature -- Request processing
 
-feature -- Handshake
-
-	start_handshake (a_handshake: STRING)
+	process_request (a_socket: HTTP_STREAM_SOCKET)
+			-- Process request ...
 		do
-			subscriber.on_websocket_handshake (a_handshake)
+				-- Set socket mode as "blocking", this simplifies the code
+				-- and in protocol based communication, the number of bytes to read
+				-- is always known.
+			a_socket.set_blocking
+
+			is_websocket := False
+			open_ws_handshake (a_socket)
+			if is_websocket then
+				on_open (a_socket)
+				process_ws_request (a_socket)
+			else
+				process_http_request (a_socket)
+			end
+--			release
+		rescue
+--			release
 		end
 
-feature -- Receive
+feature -- Request processing
 
-	receive
+	process_http_request (a_socket: HTTP_STREAM_SOCKET)
+			-- Process request ...
+		require
+			no_error: not has_error
+			a_uri_attached: uri /= Void
+			a_method_attached: method /= Void
+			a_header_map_attached: request_header_map /= Void
+			a_header_text_attached: request_header /= Void
+			a_socket_attached: a_socket /= Void
+		deferred
+		end
+
+	process_ws_request (a_socket: HTTP_STREAM_SOCKET)
+		require
+			is_websocket: is_websocket
 		local
+			exit: BOOLEAN
 			l_frame: detachable WEB_SOCKET_FRAME
 			l_client_message: detachable READABLE_STRING_8
+			l_utf: UTF_CONVERTER
 		do
-			l_frame := next_frame (subscriber.connection)
-			if l_frame /= Void and then l_frame.is_valid then
-				if attached l_frame.injected_control_frames as l_injections then
-						-- Process injected control frames now.
-						-- FIXME
-					across
-						l_injections as ic
-					loop
-						if ic.item.is_connection_close then
-								-- FIXME: we should probably send this event .. after the `l_frame.parent' frame event.
-							subscriber.on_websocket_close ("Normal Close")
-						elseif ic.item.is_ping then
-								-- FIXME reply only to the most recent ping ...
-							subscriber.on_websocket_ping (ic.item.payload_data)
-						elseif ic.item.is_pong then
-							subscriber.on_websocket_pong (ic.item.payload_data)
-						else
-							subscriber.on_websocket_error ("Wrong Opcode")
+			from
+					-- loop until ws is closed or has error.
+			until
+				 has_error or else exit
+			loop
+				debug ("dbglog")
+					dbglog (generator + ".LOOP WS_REQUEST_HANDLER.process_request {" + a_socket.descriptor.out + "}")
+				end
+				if a_socket.ready_for_reading then
+					l_frame := next_frame (a_socket)
+					if l_frame /= Void and then l_frame.is_valid then
+						if attached l_frame.injected_control_frames as l_injections then
+								-- Process injected control frames now.
+								-- FIXME
+							across
+								l_injections as ic
+							loop
+								if ic.item.is_connection_close then
+										-- FIXME: we should probably send this event .. after the `l_frame.parent' frame event.
+									on_event (a_socket, ic.item.payload_data, ic.item.opcode)
+                      				exit := True
+                      			elseif ic.item.is_ping then
+                      					-- FIXME reply only to the most recent ping ...
+                      				on_event (a_socket, ic.item.payload_data, ic.item.opcode)
+                      			else
+                      				on_event (a_socket, ic.item.payload_data, ic.item.opcode)
+								end
+							end
 						end
+
+						l_client_message := l_frame.payload_data
+						if l_client_message = Void then
+							l_client_message := ""
+						end
+
+						debug ("ws")
+							print("%NExecute: %N")
+							print (" [opcode: "+ opcode_name (l_frame.opcode) +"]%N")
+							if l_frame.is_text then
+								print (" [client message: %""+ l_client_message +"%"]%N")
+							elseif l_frame.is_binary then
+								print (" [client binary message length: %""+ l_client_message.count.out +"%"]%N")
+							end
+							print (" [is_control: " + l_frame.is_control.out + "]%N")
+							print (" [is_binary: " + l_frame.is_binary.out + "]%N")
+							print (" [is_text: " + l_frame.is_text.out + "]%N")
+						end
+
+						if l_frame.is_connection_close then
+							on_event (a_socket, l_client_message, l_frame.opcode)
+                      				exit := True
+						elseif l_frame.is_binary then
+ 									on_event (a_socket, l_client_message, l_frame.opcode)
+ 							elseif l_frame.is_text then
+ 								check is_valid_utf_8: l_utf.is_valid_utf_8_string_8 (l_client_message) end
+ 								on_event (a_socket, l_client_message, l_frame.opcode)
+ 							else
+ 								on_event (a_socket, l_client_message, l_frame.opcode)
+ 							end
+ 						else
+						debug ("ws")
+							print("%NExecute: %N")
+							print (" [ERROR: invalid frame]%N")
+							if l_frame /= Void and then attached l_frame.error as err then
+								print (" [Code: "+ err.code.out +"]%N")
+								print (" [Description: "+ err.description +"]%N")
+							end
+						end
+						on_event (a_socket, "", connection_close_frame)
+ 							exit := True
 					end
-				end
-				l_client_message := l_frame.payload_data
-				if l_client_message = Void then
-					l_client_message := ""
-				end
-				debug ("ws")
-					print ("%NExecute: %N")
-					print (" [opcode: " + opcode_name (l_frame.opcode) + "]%N")
-					if l_frame.is_text then
-						print (" [client message: %"" + l_client_message + "%"]%N")
-					elseif l_frame.is_binary then
-						print (" [client binary message length: %"" + l_client_message.count.out + "%"]%N")
-					end
-					print (" [is_control: " + l_frame.is_control.out + "]%N")
-					print (" [is_binary: " + l_frame.is_binary.out + "]%N")
-					print (" [is_text: " + l_frame.is_text.out + "]%N")
-				end
-				if l_frame.is_connection_close then
-					subscriber.on_websocket_close ("Normal Close")
-				elseif l_frame.is_binary then
-					subscriber.on_websocket_binary_message (l_client_message)
-				elseif l_frame.is_text then
-					subscriber.on_websocket_text_message (l_client_message)
-				elseif l_frame.is_ping then
-					subscriber.on_websocket_ping (l_client_message)
-				elseif l_frame.is_pong then
-					subscriber.on_websocket_pong (l_client_message)
 				else
-					subscriber.on_websocket_error ("Wrong Opcode")
-				end
-			else
-				debug ("ws")
-					print ("%NExecute: %N")
-					print (" [ERROR: invalid frame]%N")
-					if l_frame /= Void and then attached l_frame.error as err then
-						print (" [Code: " + err.code.out + "]%N")
-						print (" [Description: " + err.description + "]%N")
+					if is_verbose then
+						log (generator + ".WAITING WS_REQUEST_HANDLER.process_request {" + a_socket.descriptor.out + "}")
 					end
 				end
-				subscriber.on_websocket_close ("")
-			end
-
-				--				if l_utf.is_valid_utf_8_string_8 (l_message) then
-				--					if is_data_frame_ok then
-				--						if opcode = text_frame then
-				--							subscriber.on_websocket_text_message (l_message)
-				--						elseif opcode = binary_frame then
-				--							subscriber.on_websocket_binary_message (l_message)
-				--						elseif opcode = ping_frame then
-				--							subscriber.on_websocket_ping (l_message)
-				--						elseif opcode = pong_frame then
-				--							subscriber.on_websocket_pong (l_message)
-				--						elseif opcode = Connection_close_frame then
-				--							subscriber.on_websocket_close ("Normal Close")
-				--						elseif opcode = ping_frame then
-				--							subscriber.on_websocket_ping (l_message)
-				--						elseif opcode = pong_frame then
-				--							subscriber.on_websocket_pong (l_message)
-				--						else
-				--							subscriber.on_websocket_error ("Wrong Opcode")
-				--						end
-				--					else
-				--						subscriber.on_websocket_close ("Invalid data frame")
-				--					end
-				--				else
-				--					subscriber.on_websocket_error ("Invalid UTF-8")
-				--				end
-
-		end
-
-feature -- Methods
-
-	send (a_message: STRING)
-		do
-		end
-
-	close (a_id: INTEGER)
-			-- Close a websocket connection with a close id : `a_id'
-		do
-		end
-
-	close_with_description (a_id: INTEGER; a_description: READABLE_STRING_GENERAL)
-			-- Close a websocket connection with a close id : `a_id' and a description `a_description'
-		do
-		end
-
-feature {NONE} -- Implementation
-
-	set_default_port
-		do
-			if is_tunneled then
-				port := wss_port_default
-			else
-				port := ws_port_default
 			end
 		end
 
-	subscriber: WEB_SOCKET_SUBSCRIBER
+feature -- WebSockets
 
-	next_frame (a_socket: TCP_STREAM_SOCKET): detachable WEB_SOCKET_FRAME
+	next_frame (a_socket: HTTP_STREAM_SOCKET): detachable WEB_SOCKET_FRAME
 			-- TODO Binary messages
 			-- Handle error responses in a better way.
 			-- IDEA:
@@ -252,7 +195,7 @@ feature {NONE} -- Implementation
 			--     :                     Payload Data continued ...                :
 			--     + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 			--     |                     Payload Data continued ...                |
-			--     +---------------------------------------------------------------+
+			--     +---------------------------------------------------------------+			
 		note
 			EIS: "name=WebSocket RFC", "protocol=URI", "src=http://tools.ietf.org/html/rfc6455#section-5.2"
 		require
@@ -262,6 +205,7 @@ feature {NONE} -- Implementation
 			l_len: INTEGER
 			l_remaining_len: INTEGER
 			l_payload_len: NATURAL_64
+			l_masking_key: detachable READABLE_STRING_8
 			l_chunk: STRING
 			l_rsv: BOOLEAN
 			l_fin: BOOLEAN
@@ -278,6 +222,7 @@ feature {NONE} -- Implementation
 				debug ("ws")
 					print ("next_frame:%N")
 				end
+
 				from
 					is_data_frame_ok := True
 				until
@@ -291,7 +236,7 @@ feature {NONE} -- Implementation
 							print ("[ERROR] incomplete_data!%N")
 						end
 					else
-						l_byte := s [1].code
+						l_byte := s[1].code
 						debug ("ws")
 							print ("   fin,rsv(3),opcode(4)=")
 							print (to_byte_representation (l_byte))
@@ -300,6 +245,7 @@ feature {NONE} -- Implementation
 						l_fin := l_byte & (0b10000000) /= 0
 						l_rsv := l_byte & (0b01110000) = 0
 						l_opcode := l_byte & 0b00001111
+
 						if Result /= Void then
 							if l_opcode = Result.opcode then
 									-- should not occur in multi-fragment frame!
@@ -326,6 +272,7 @@ feature {NONE} -- Implementation
 								Result.report_error (protocol_error, "There is no message to continue!")
 							end
 						end
+
 						if Result.is_valid then
 								--| valid frame/fragment
 							if is_verbose then
@@ -354,33 +301,34 @@ feature {NONE} -- Implementation
 							-- At the moment only TEXT, (pending Binary)
 						if Result.is_valid then
 							if Result.is_text or Result.is_binary or Result.is_control then
-									-- Reading next byte (mask+payload_len)
+										-- Reading next byte (mask+payload_len)
 								s := next_bytes (a_socket, 1)
 								if s.is_empty then
 									Result.report_error (invalid_data, "Incomplete data for mask and payload len")
 								else
-									l_byte := s [1].code
+									l_byte := s[1].code
 									debug ("ws")
 										print ("   mask,payload_len(7)=")
 										print (to_byte_representation (l_byte))
 										io.put_new_line
 									end
-									l_has_mask := l_byte & (0b10000000) /= 0 -- MASK
+									l_has_mask :=  l_byte & (0b10000000) /= 0 -- MASK
 									l_len := l_byte & 0b01111111 -- 7bits
 
 									debug ("ws")
 										print ("   payload_len=" + l_len.out)
 										io.put_new_line
 									end
+
 									if Result.is_control and then l_len > 125 then
 											-- All control frames MUST have a payload length of 125 bytes or less
-											-- and MUST NOT be fragmented.
+	   										-- and MUST NOT be fragmented.
 										Result.report_error (protocol_error, "Control frame MUST have a payload length of 125 bytes or less")
-									elseif l_len = 127 then -- TODO proof of concept read 8 bytes.
+									elseif l_len = 127 then  -- TODO proof of concept read 8 bytes.
 											-- the following 8 bytes interpreted as a 64-bit unsigned integer
 											-- (the most significant bit MUST be 0) are the payload length.
-											-- Multibyte length quantities are expressed in network byte order.
-										s := next_bytes (a_socket, 8) -- 64 bits
+	      									-- Multibyte length quantities are expressed in network byte order.
+	      								s := next_bytes (a_socket, 8) -- 64 bits
 										debug ("ws")
 											print ("   extended payload length=" + string_to_byte_representation (s))
 											io.put_new_line
@@ -388,14 +336,14 @@ feature {NONE} -- Implementation
 										if s.count < 8 then
 											Result.report_error (Invalid_data, "Incomplete data for 64 bit Extended payload length")
 										else
-											l_payload_len := s [8].natural_32_code.to_natural_64
-											l_payload_len := l_payload_len | (s [7].natural_32_code.to_natural_64 |<< 8)
-											l_payload_len := l_payload_len | (s [6].natural_32_code.to_natural_64 |<< 16)
-											l_payload_len := l_payload_len | (s [5].natural_32_code.to_natural_64 |<< 24)
-											l_payload_len := l_payload_len | (s [4].natural_32_code.to_natural_64 |<< 32)
-											l_payload_len := l_payload_len | (s [3].natural_32_code.to_natural_64 |<< 40)
-											l_payload_len := l_payload_len | (s [2].natural_32_code.to_natural_64 |<< 48)
-											l_payload_len := l_payload_len | (s [1].natural_32_code.to_natural_64 |<< 56)
+											l_payload_len := s[8].natural_32_code.to_natural_64
+											l_payload_len := l_payload_len | (s[7].natural_32_code.to_natural_64 |<< 8)
+											l_payload_len := l_payload_len | (s[6].natural_32_code.to_natural_64 |<< 16)
+											l_payload_len := l_payload_len | (s[5].natural_32_code.to_natural_64 |<< 24)
+											l_payload_len := l_payload_len | (s[4].natural_32_code.to_natural_64 |<< 32)
+											l_payload_len := l_payload_len | (s[3].natural_32_code.to_natural_64 |<< 40)
+											l_payload_len := l_payload_len | (s[2].natural_32_code.to_natural_64 |<< 48)
+											l_payload_len := l_payload_len | (s[1].natural_32_code.to_natural_64 |<< 56)
 										end
 									elseif l_len = 126 then
 										s := next_bytes (a_socket, 2) -- 16 bits
@@ -406,8 +354,8 @@ feature {NONE} -- Implementation
 										if s.count < 2 then
 											Result.report_error (Invalid_data, "Incomplete data for 16 bit Extended payload length")
 										else
-											l_payload_len := s [2].natural_32_code.to_natural_64
-											l_payload_len := l_payload_len | (s [1].natural_32_code.to_natural_64 |<< 8)
+											l_payload_len := s[2].natural_32_code.to_natural_64
+											l_payload_len := l_payload_len | (s[1].natural_32_code.to_natural_64 |<< 8)
 										end
 									else
 										l_payload_len := l_len.to_natural_64
@@ -416,10 +364,23 @@ feature {NONE} -- Implementation
 										print ("   Full payload length=" + l_payload_len.out)
 										io.put_new_line
 									end
+
 									if Result.is_valid then
 										if l_has_mask then
-											Result.report_error (protocol_error, "Server sent a masked frame!")
+											l_masking_key := next_bytes (a_socket, 4) -- 32 bits
+											debug ("ws")
+												print ("   Masking key bits=" + string_to_byte_representation (l_masking_key))
+												io.put_new_line
+											end
+											if l_masking_key.count < 4 then
+												debug ("ws")
+													print ("masking-key read stream -> "+ a_socket.bytes_read.out + " bits%N")
+												end
+												Result.report_error (Invalid_data, "Incomplete data for Masking-key")
+												l_masking_key := Void
+											end
 										else
+											Result.report_error (protocol_error, "All frames sent from client to server are masked!")
 										end
 										if Result.is_valid then
 											l_chunk_size := 0x4000 -- 16 K
@@ -430,6 +391,7 @@ feature {NONE} -- Implementation
 											else
 												l_len := l_payload_len.to_integer_32
 											end
+
 											from
 												l_fetch_count := 0
 												l_remaining_len := l_len
@@ -442,11 +404,19 @@ feature {NONE} -- Implementation
 												a_socket.read_stream (l_chunk_size)
 												l_bytes_read := a_socket.bytes_read
 												debug ("ws")
-													print ("read chunk size=" + l_chunk_size.out + " fetch_count=" + l_fetch_count.out + " l_len=" + l_len.out + " -> " + l_bytes_read.out + "bytes%N")
+													print ("read chunk size=" + l_chunk_size.out + " fetch_count="+ l_fetch_count.out +" l_len="+l_len.out+" -> " + l_bytes_read.out + "bytes%N")
 												end
 												if a_socket.bytes_read > 0 then
 													l_remaining_len := l_remaining_len - l_bytes_read
+
 													l_chunk := a_socket.last_string
+													if l_masking_key /= Void then
+															--  Masking
+															--  http://tools.ietf.org/html/rfc6455#section-5.3
+														unmask (l_chunk, l_fetch_count + 1, l_masking_key)
+													else
+														check client_frame_should_always_be_encoded: False end
+													end
 													l_fetch_count := l_fetch_count + l_bytes_read
 													Result.append_payload_data_chop (l_chunk, l_bytes_read, l_remaining_len = 0)
 												else
@@ -456,6 +426,7 @@ feature {NONE} -- Implementation
 											if is_verbose then
 												log ("  Received " + l_fetch_count.out + " out of " + l_len.out + " bytes <===============")
 											end
+
 											debug ("ws")
 												print (" -> ")
 												if attached Result.payload_data as l_payload_data then
@@ -486,7 +457,7 @@ feature {NONE} -- Implementation
 					if Result /= Void then
 						if attached Result.error as err then
 							if is_verbose then
-								log ("  !Invalid frame: " + err.string)
+								log ("  !Invalid frame: " +  err.string)
 							end
 						end
 						if Result.is_injected_control then
@@ -502,14 +473,12 @@ feature {NONE} -- Implementation
 									Result := l_parent
 									l_fin := l_parent.is_fin
 									check
-											-- This is a control frame but occurs in fragmented frame.
+										 	-- This is a control frame but occurs in fragmented frame.
 										inside_fragmented_frame: not l_fin
 									end
 								end
 							else
-								check
-									has_parent: False
-								end
+								check has_parent: False end
 								l_fin := False -- This is a control frame but occurs in fragmented frame.
 							end
 						end
@@ -529,11 +498,89 @@ feature {NONE} -- Implementation
 			retry
 		end
 
-	next_bytes (a_socket: TCP_STREAM_SOCKET; nb: INTEGER): STRING
+	open_ws_handshake (a_socket: HTTP_STREAM_SOCKET)
+			-- The opening handshake is intended to be compatible with HTTP-based
+			-- server-side software and intermediaries, so that a single port can be
+			-- used by both HTTP clients alking to that server and WebSocket
+			-- clients talking to that server.  To this end, the WebSocket client's
+			-- handshake is an HTTP Upgrade request:
+
+			--    GET /chat HTTP/1.1
+			--    Host: server.example.com
+			--    Upgrade: websocket
+			--    Connection: Upgrade
+			--    Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
+			--    Origin: http://example.com
+			--    Sec-WebSocket-Protocol: chat, superchat
+			--    Sec-WebSocket-Version: 13
+		local
+			l_sha1: SHA1
+			l_key : STRING
+			l_handshake: STRING
+		do
+				-- Reading client's opening GT
+
+				-- TODO extract to a validator handshake or something like that.
+			if is_verbose then
+				log ("%NReceive <====================")
+				log (request_header)
+			end
+			is_websocket := False
+			if
+				method.same_string ("GET") and then -- MUST be GET request!
+				attached request_header_map.item ("Upgrade") as l_upgrade_key and then l_upgrade_key.is_case_insensitive_equal ("websocket") -- Upgrade header must be present with value websocket
+			then
+				is_websocket := True
+				if
+					attached request_header_map.item (Sec_WebSocket_Key) as l_ws_key and then -- Sec-websocket-key must be present
+					attached request_header_map.item ("Connection") as l_connection_key and then -- Connection header must be present with value Upgrade
+					l_connection_key.has_substring ("Upgrade") and then
+					attached request_header_map.item ("Sec-WebSocket-Version") as l_version_key and then -- Version header must be present with value 13
+					l_version_key.is_case_insensitive_equal ("13") and then
+					attached request_header_map.item ("Host") -- Host header must be present
+				then
+					if is_verbose then
+						log ("key " + l_ws_key)
+					end
+						-- Sending the server's opening handshake
+					l_ws_key.append_string (Magic_guid)
+					create l_sha1.make
+					l_sha1.update_from_string (l_ws_key)
+					l_key := Base64_encoder.encoded_string (digest (l_sha1))
+					create l_handshake.make_from_string ("HTTP/1.1 101 Switching Protocols%R%N")
+					l_handshake.append_string ("Upgrade: websocket%R%N")
+					l_handshake.append_string ("Connection: Upgrade%R%N")
+					l_handshake.append_string ("Sec-WebSocket-Accept: ")
+					l_handshake.append_string (l_key)
+					l_handshake.append_string ("%R%N")
+						-- end of header empty line
+					l_handshake.append_string ("%R%N")
+					if is_verbose then
+						log ("%N================> Send")
+						log (l_handshake)
+					end
+					a_socket.put_string (l_handshake)
+				else
+					has_error := True
+					if is_verbose then
+						log ("Error (opening_handshake)!!!")
+					end
+						-- If we cannot complete the handshake, then the server MUST stop processing the client's handshake and return an HTTP response with an
+						-- appropriate error code (such as 400 Bad Request).
+					a_socket.put_string ("HTTP/1.1 400 Bad Request%N")
+				end
+			else
+				is_websocket := False
+			end
+		end
+
+feature {NONE} -- Socket helpers
+
+	next_bytes (a_socket: HTTP_STREAM_SOCKET; nb: INTEGER): STRING
 		require
 			nb > 0
 		local
-			n, l_bytes_read: INTEGER
+			n,l_bytes_read: INTEGER
 		do
 			create Result.make (nb)
 			from
@@ -552,9 +599,33 @@ feature {NONE} -- Implementation
 			end
 		end
 
+feature -- Encoding
+
+	digest (a_sha1: SHA1): STRING
+			-- Digest of `a_sha1'.
+			-- Should by in SHA1 class
+		local
+			l_digest: SPECIAL [NATURAL_8]
+			index, l_upper: INTEGER
+		do
+			l_digest := a_sha1.digest
+			create Result.make (l_digest.count // 2)
+			from
+				index := l_digest.Lower
+				l_upper := l_digest.upper
+			until
+				index > l_upper
+			loop
+				Result.append_character (l_digest [index].to_character_8)
+				index := index + 1
+			end
+		end
+
+feature -- Masking Data Client - Server
+
 	unmask (a_chunk: STRING_8; a_pos: INTEGER; a_key: READABLE_STRING_8)
 		local
-			i, n: INTEGER
+			i,n: INTEGER
 		do
 			from
 				i := 1
@@ -585,13 +656,13 @@ feature {NONE} -- Implementation
 			--   the "Payload data", e.g., the number of bytes following the masking
 			--   key.
 		note
-			EIS: "name=Masking", "src=http://tools.ietf.org/html/rfc6455#section-5.3", "protocol=uri"
+			EIS: "name=Masking","src=http://tools.ietf.org/html/rfc6455#section-5.3", "protocol=uri"
 		local
-			i, n: INTEGER
+			i,n: INTEGER
 		do
-				--			debug ("ws")
-				--				print ("append_chunk_unmasked (%"" + string_to_byte_representation (a_chunk) + "%",%N%Ta_pos=" + a_pos.out+ ", a_key, a_target #.count=" + a_target.count.out + ")%N")
-				--			end
+--			debug ("ws")
+--				print ("append_chunk_unmasked (%"" + string_to_byte_representation (a_chunk) + "%",%N%Ta_pos=" + a_pos.out+ ", a_key, a_target #.count=" + a_target.count.out + ")%N")
+--			end
 			from
 				i := 1
 				n := a_chunk.count
@@ -603,70 +674,7 @@ feature {NONE} -- Implementation
 			end
 		end
 
-feature {NONE} -- Debug
-
-	log (m: STRING)
-		do
-			io.put_string (m + "%N")
-		end
-
-	to_byte (a_integer: INTEGER): ARRAY [INTEGER]
-		require
-			valid: a_integer >= 0 and then a_integer <= 255
-		local
-			l_val: INTEGER
-			l_index: INTEGER
-		do
-			create Result.make_filled (0, 1, 8)
-			from
-				l_val := a_integer
-				l_index := 8
-			until
-				l_val < 2
-			loop
-				Result.put (l_val \\ 2, l_index)
-				l_val := l_val // 2
-				l_index := l_index - 1
-			end
-			Result.put (l_val, l_index)
-		end
-
-feature -- Masking
-
-	unmmask (a_frame: READABLE_STRING_8; a_key: READABLE_STRING_8): STRING
-			--	 To convert masked data into unmasked data, or vice versa, the following
-			--   algorithm is applied.  The same algorithm applies regardless of the
-			--   direction of the translation, e.g., the same steps are applied to
-			--   mask the data as to unmask the data.
-
-			--   Octet i of the transformed data ("transformed-octet-i") is the XOR of
-			--   octet i of the original data ("original-octet-i") with octet at index
-			--   i modulo 4 of the masking key ("masking-key-octet-j"):
-
-			--     j                   = i MOD 4
-			--     transformed-octet-i = original-octet-i XOR masking-key-octet-j
-
-			--   The payload length, indicated in the framing as frame-payload-length,
-			--   does NOT include the length of the masking key.  It is the length of
-			--   the "Payload data", e.g., the number of bytes following the masking
-			--   key.
-		note
-			EIS: "name=Masking", "src=S", "protocol=uri"
-		local
-			l_frame: STRING
-			i: INTEGER
-		do
-			l_frame := a_frame.twin
-			from
-				i := 1
-			until
-				i > l_frame.count
-			loop
-				l_frame [i] := (l_frame [i].code.to_integer_8.bit_xor (a_key [((i - 1) \\ 4) + 1].code.to_integer_8)).to_character_8
-				i := i + 1
-			end
-			Result := l_frame
-		end
+feature {NONE} -- Debug		
 
 	to_byte_representation (a_integer: INTEGER): STRING
 		require
@@ -703,7 +711,7 @@ feature -- Masking
 					if not Result.is_empty then
 						Result.append_character (':')
 					end
-					Result.append (to_byte_representation (s [i].code))
+					Result.append (to_byte_representation (s[i].code))
 					i := i + 1
 				end
 			end
@@ -725,10 +733,8 @@ feature -- Masking
 					if not Result.is_empty then
 						Result.append_character (':')
 					end
-					c := s [i].code
-					check
-						c <= 0xFF
-					end
+					c := s[i].code
+					check c <= 0xFF end
 					Result.append_character (((c |>> 4) & 0xF).to_hex_character)
 					Result.append_character (((c) & 0xF).to_hex_character)
 					i := i + 1

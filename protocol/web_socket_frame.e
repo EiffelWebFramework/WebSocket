@@ -1,6 +1,6 @@
 note
 	description: "[
-			Summary description for {WS_FRAME}.
+			Summary description for {WEB_SOCKET_FRAME}.
 					See Base Framing Protocol: http://tools.ietf.org/html/rfc6455#section-5.2
 				      0                   1                   2                   3
 				      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -29,12 +29,12 @@ note
 	EIS: "name=Websocket RFC6455 section-5.2", "protocol=URI", "src=http://tools.ietf.org/html/rfc6455#section-5.2", "tag=rfc"
 
 class
-	WS_FRAME
+	WEB_SOCKET_FRAME
 
 inherit
 	ANY
 
-	WS_CONSTANTS
+	WEB_SOCKET_CONSTANTS
 
 create
 	make,
@@ -75,7 +75,7 @@ feature {NONE} -- Initialization
 			end
 		end
 
-	make_as_injected_control (a_opcode: INTEGER; a_parent: WS_FRAME)
+	make_as_injected_control (a_opcode: INTEGER; a_parent: WEB_SOCKET_FRAME)
 		require
 			parent_is_not_control_frame: not a_parent.is_control
 			a_opcode_is_control_frame: is_control_frame (a_opcode)
@@ -108,14 +108,14 @@ feature -- Access
  			end
  		end
 
-	error: detachable WS_ERROR_FRAME
+	error: detachable WEB_SOCKET_ERROR_FRAME
 			-- Describe the type of error
 
 feature -- Access: injected control frames
 
- 	injected_control_frames: detachable LIST [WS_FRAME]
+ 	injected_control_frames: detachable LIST [WEB_SOCKET_FRAME]
 
- 	parent: detachable WS_FRAME
+ 	parent: detachable WEB_SOCKET_FRAME
  			-- If Current is injected, `parent' is the related fragmented frame
 
 	is_injected_control: BOOLEAN
@@ -132,9 +132,9 @@ feature -- Operation
 			is_fin := a_flag_is_fin
 		end
 
-feature {WS_FRAME} -- Change: injected control frames 			
+feature {WEB_SOCKET_FRAME} -- Change: injected control frames 			
 
-	add_injected_control_frame (f: WS_FRAME)
+	add_injected_control_frame (f: WEB_SOCKET_FRAME)
 		require
 			Current_is_not_control: not is_control
 			f_is_control_frame: f.is_control
@@ -144,7 +144,7 @@ feature {WS_FRAME} -- Change: injected control frames
 		do
 			lst := injected_control_frames
 			if lst = Void then
-				create {ARRAYED_LIST [WS_FRAME]} lst.make (1)
+				create {ARRAYED_LIST [WEB_SOCKET_FRAME]} lst.make (1)
 				injected_control_frames := lst
 			end
 			lst.force (f)
@@ -152,7 +152,7 @@ feature {WS_FRAME} -- Change: injected control frames
 			parented_to_current: f.parent = Current
 		end
 
-	remove_injected_control_frame (f: WS_FRAME)
+	remove_injected_control_frame (f: WEB_SOCKET_FRAME)
 		require
 			Current_is_not_control: not is_control
 			f_is_control_frame: f.is_control
