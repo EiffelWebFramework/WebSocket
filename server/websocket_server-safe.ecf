@@ -15,35 +15,16 @@
 		<library name="base" location="$ISE_LIBRARY\library\base\base-safe.ecf"/>
 		<library name="crypto" location="$ISE_LIBRARY\unstable\library\text\encryption\crypto\crypto-safe.ecf"/>
 		<library name="encoder" location="$ISE_LIBRARY\contrib\library\web\framework\ewf\text\encoder\encoder-safe.ecf"/>
+		<library name="httpd" location="lib\httpd\httpd-safe.ecf"/>
 		<library name="net" location="$ISE_LIBRARY\library\net\net-safe.ecf"/>
-		<library name="net_ssl" location="$ISE_LIBRARY\unstable\library\network\socket\netssl\net_ssl-safe.ecf"/>
+
 		<library name="thread" location="$ISE_LIBRARY\library\thread\thread-safe.ecf">
 			<condition>
 				<concurrency excluded_value="none"/>
 			</condition>
 		</library>
 		<library name="time" location="$ISE_LIBRARY\library\time\time-safe.ecf"/>
-		<cluster name="httpd_server" location=".\src\httpd\" recursive="true">
-			<file_rule>
-				<exclude>/concurrency$</exclude>
-			</file_rule>
-			<cluster name="concurrency_none" location="$|concurrency\none\" recursive="true">
-				<condition>
-					<concurrency value="none"/>
-				</condition>
-			</cluster>
-			<cluster name="concurrency_scoop" location="$|concurrency\scoop\" recursive="true">
-				<condition>
-					<concurrency value="scoop"/>
-				</condition>
-			</cluster>
-			<cluster name="concurrency_thread" location="$|concurrency\thread\" recursive="true">
-				<condition>
-					<concurrency value="thread"/>
-				</condition>
-			</cluster>
-		</cluster>
 		<cluster name="protocol" location="..\protocol\" recursive="true"/>
-		<cluster name="websocket_server" location=".\src\websocket\" recursive="true"/>
+		<cluster name="websocket_server" location=".\src\" recursive="true"/>
 	</target>
 </system>
