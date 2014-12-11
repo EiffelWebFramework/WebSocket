@@ -69,7 +69,7 @@ feature -- Event
 		do
 		end
 
-	connection: TCP_STREAM_SOCKET
+	connection: HTTP_STREAM_SOCKET
 		do
 			Result := socket
 		end

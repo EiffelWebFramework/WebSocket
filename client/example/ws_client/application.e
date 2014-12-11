@@ -22,11 +22,11 @@ feature {NONE} -- Initialization
 			l_env: EXECUTION_ENVIRONMENT
 			l_protocols: LIST[STRING]
 		do
-			create {ARRAYED_LIST[STRING]}l_protocols.make (0)
-			l_protocols.fill (<<"com.kaazing.echo","example.imaginary.protocol">>)
+			create {ARRAYED_LIST [STRING]} l_protocols.make (0)
+			l_protocols.fill (<<"com.kaazing.echo", "example.imaginary.protocol">>)
 			create l_env
---			create ws_client.make_with_port ("wss://echo.websocket.org",443, Void)
-			create ws_client.make_with_port ("ws://127.0.0.1",9001, Void)
+--			create ws_client.make_with_port ("wss://echo.websocket.org", 443, Void)
+			create ws_client.make_with_port ("ws://127.0.0.1", 9001, Void)
 			ws_client.launch
 			run
 		end
@@ -41,7 +41,7 @@ feature {NONE} -- Initialization
 			until
 				False
 			loop
-				l_thread.sleep (1000000)
+				l_thread.sleep (1_000_000)
 			end
 		end
 

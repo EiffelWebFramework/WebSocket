@@ -70,7 +70,7 @@ feature -- Event
 			print ("Error: " + a_error)
 		end
 
-	connection: TCP_STREAM_SOCKET
+	connection: like new_socket
 		do
 			Result := socket
 		end

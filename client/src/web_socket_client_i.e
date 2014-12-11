@@ -7,7 +7,7 @@ note
 	revision: "$Revision$"
 
 deferred class
-	WEB_SOCKET_CLIENT
+	WEB_SOCKET_CLIENT_I
 
 inherit
 
@@ -42,11 +42,7 @@ feature -- Initialization
 			create protocol.make_empty
 			set_protocols (a_protocols)
 			create ready_state.make
-			if is_tunneled then
-				create socket.make_ssl_client_by_port (port, host)
-			else
-				create socket.make_client_by_port (port, host)
-			end
+			socket := new_socket (port, host)
 			create server_handshake.make
 		end
 
@@ -61,11 +57,7 @@ feature -- Initialization
 			create protocol.make_empty
 			set_protocols (a_protocols)
 			create ready_state.make
-			if is_tunneled then
-				create socket.make_ssl_client_by_port (port, host)
-			else
-				create socket.make_client_by_port (port, host)
-			end
+			socket := new_socket (port, host)
 			create server_handshake.make
 		end
 
@@ -79,17 +71,20 @@ feature -- Initialization
 			create protocol.make_empty
 --			set_protocols (a_protocols)
 			create ready_state.make
-			if is_tunneled then
-				create socket.make_ssl_client_by_port (port, host)
-			else
-				create socket.make_client_by_port (port, host)
-			end
+			socket := new_socket (port, host)
 			create server_handshake.make
+		end
+
+feature -- Factory
+
+	new_socket (a_port: INTEGER; a_host: STRING): HTTP_STREAM_SOCKET
+			-- New socket for port `a_port' on host `a_host'.
+		deferred
 		end
 
 feature -- Access
 
-	socket: TCP_STREAM_SOCKET
+	socket: HTTP_STREAM_SOCKET
 			-- Socket
 
 	has_error: BOOLEAN

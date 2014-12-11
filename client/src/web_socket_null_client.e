@@ -22,9 +22,9 @@ feature -- Handshake
 
 feature -- TCP connection
 
-	connection: TCP_STREAM_SOCKET
+	connection: HTTP_STREAM_SOCKET
 		do
-			create Result.make_ssl_client_by_port (0, "null")
+			create Result.make_client_by_port (0, "null")
 		end
 
 end

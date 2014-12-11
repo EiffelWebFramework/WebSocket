@@ -223,7 +223,7 @@ feature {NONE} -- Implementation
 
 	subscriber: WEB_SOCKET_SUBSCRIBER
 
-	next_frame (a_socket: TCP_STREAM_SOCKET): detachable WEB_SOCKET_FRAME
+	next_frame (a_socket: HTTP_STREAM_SOCKET): detachable WEB_SOCKET_FRAME
 			-- TODO Binary messages
 			-- Handle error responses in a better way.
 			-- IDEA:
@@ -529,7 +529,7 @@ feature {NONE} -- Implementation
 			retry
 		end
 
-	next_bytes (a_socket: TCP_STREAM_SOCKET; nb: INTEGER): STRING
+	next_bytes (a_socket: HTTP_STREAM_SOCKET; nb: INTEGER): STRING
 		require
 			nb > 0
 		local
