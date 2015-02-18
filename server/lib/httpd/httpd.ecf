@@ -18,7 +18,6 @@
 				<custom name="httpd_ssl_disabled" excluded_value="true"/>
 			</condition>
 		</library>
-		
 		<library name="thread" location="$ISE_LIBRARY\library\thread\thread.ecf">
 			<condition>
 				<concurrency excluded_value="none"/>
@@ -28,6 +27,7 @@
 		<cluster name="httpd_server" location=".\" recursive="true">
 			<file_rule>
 				<exclude>/EIFGENs$</exclude>
+				<exclude>/spec$</exclude>
 				<exclude>/concurrency$</exclude>
 				<exclude>/ssl$</exclude>
 				<exclude>/socket$</exclude>
@@ -44,11 +44,22 @@
 				</condition>
 			</cluster>
 			<cluster name="socket" location="$|socket\">
+				<file_rule>
+					<exclude>/tcp_stream_socket.e$</exclude>
+					<condition>
+						<version type="compiler" max="15.2.0.0"/>
+					</condition>
+				</file_rule>
 				<cluster name="socket_sll" location="$|ssl\" recursive="true" hidden="true">
 					<condition>
 						<custom name="httpd_ssl_disabled" excluded_value="true"/>
 					</condition>
 				</cluster>
+			</cluster>
+			<cluster name="spec_before_15_01" location="$|spec\before_15_01\" recursive="true">
+				<condition>
+					<version type="compiler" max="15.2.0.0"/>
+				</condition>
 			</cluster>
 			<cluster name="concurrency_none" location="$|concurrency\none\" recursive="true">
 				<condition>

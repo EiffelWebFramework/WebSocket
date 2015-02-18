@@ -19,7 +19,7 @@ create
 	make_from_separate
 
 create {NETWORK_STREAM_SOCKET}
-	make_from_descriptor_and_address, make_empty
+	make_from_descriptor_and_address
 
 feature {NONE} -- Initialization
 

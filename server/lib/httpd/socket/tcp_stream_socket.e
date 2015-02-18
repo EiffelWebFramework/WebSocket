@@ -17,7 +17,7 @@ create
 	make_server_by_address_and_port, make_server_by_port, make_from_separate
 
 create {NETWORK_STREAM_SOCKET}
-	make_from_descriptor_and_address
+	make_from_descriptor_and_address, make_empty
 
 feature {NONE} -- Initialization
 
