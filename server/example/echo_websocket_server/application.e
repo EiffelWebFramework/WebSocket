@@ -34,7 +34,7 @@ feature {NONE} -- Initialization
 
 	make
 		do
-			make_with_port (9090)
+			make_with_port (default_port_number)
 			launch
 		end
 
@@ -51,7 +51,7 @@ feature {NONE} -- Initialization
 				a_cfg.set_ca_key ("C:\OpenSSL-Win64\bin\ca.key") -- Change to use your own key file.
 				a_cfg.set_ssl_protocol_to_ssl_3
 			end
-			
+
 			a_cfg.http_server_port := a_port
 			a_cfg.set_max_concurrent_connections (50)
 			debug ("nino")
@@ -61,12 +61,14 @@ feature {NONE} -- Initialization
 
 feature -- Access
 
+	default_port_number: INTEGER = 9090
+
 	server: HTTP_SERVER
 
 	default_document_root: STRING = "webroot"
 
 note
-	copyright: "2011-2014, Javier Velilla, Jocelyn Fiat and others"
+	copyright: "2011-2015, Javier Velilla, Jocelyn Fiat and others"
 	license: "Eiffel Forum License v2 (see http://www.eiffel.com/licensing/forum.txt)"
 end
 
