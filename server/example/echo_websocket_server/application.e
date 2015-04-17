@@ -47,9 +47,9 @@ feature {NONE} -- Initialization
 		do
 			if a_cfg.has_ssl_support then
 				a_cfg.mark_secure
-				a_cfg.set_ca_crt ("C:\OpenSSL-Win64\bin\ca.crt") -- Change to use your own crt file.
-				a_cfg.set_ca_key ("C:\OpenSSL-Win64\bin\ca.key") -- Change to use your own key file.
-				a_cfg.set_ssl_protocol_to_ssl_3
+				a_cfg.set_ca_crt ("C:\temp\OpenSSL\server.crt") -- Change to use your own crt file.
+				a_cfg.set_ca_key ("C:\temp\OpenSSL\server.key") -- Change to use your own key file.
+				a_cfg.set_ssl_protocol_to_ssl_2_or_3
 			end
 
 			a_cfg.http_server_port := a_port

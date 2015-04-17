@@ -11,7 +11,8 @@ class
 inherit
 	HTTP_SERVER_I
 		redefine
-			new_listening_socket
+			new_listening_socket,
+			process_incoming_connection
 		end
 
 create
@@ -31,5 +32,14 @@ feature {NONE} -- Factory
 				Result := Precursor (a_addr, a_http_port)
 			end
 		end
+
+
+	process_incoming_connection (a_socket: HTTP_STREAM_SOCKET; a_connection_handler: HTTP_CONNECTION_HANDLER)
+		do
+			if attached {HTTP_STREAM_SSL_SOCKET} a_socket as a_ssl_socket then
+				a_connection_handler.process_incoming_connection (a_ssl_socket)
+			end
+		end
+
 
 end

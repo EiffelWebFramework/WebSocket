@@ -1,6 +1,5 @@
 note
 	description: "Summary description for {HTTP_DEBUG_FACILITIES}."
-	author: ""
 	date: "$Date$"
 	revision: "$Revision$"
 

@@ -181,9 +181,9 @@ feature -- Execute
 		do
 			set_implementation
 			socket.connect
-			check
-				socket_connected: socket.is_connected
-			end
+--			check
+--				socket_connected: socket.is_connected
+--			end
 			send_handshake
 			receive_handshake
 			if is_server_hanshake_accpeted then

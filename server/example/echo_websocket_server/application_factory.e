@@ -10,7 +10,6 @@ class
 inherit
 	HTTP_REQUEST_HANDLER_FACTORY
 
-feature -- Access
 
 feature -- Factory
 
@@ -21,6 +20,6 @@ feature -- Factory
 		end
 
 note
-	copyright: "2011-2013, Javier Velilla, Jocelyn Fiat and others"
+	copyright: "2011-2015, Javier Velilla, Jocelyn Fiat and others"
 	license: "Eiffel Forum License v2 (see http://www.eiffel.com/licensing/forum.txt)"
 end

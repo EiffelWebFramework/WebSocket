@@ -1,6 +1,5 @@
 note
 	description: "Summary description for {HTTP_SERVER_LOGGER}."
-	author: ""
 	date: "$Date$"
 	revision: "$Revision$"
 

@@ -1,6 +1,5 @@
 note
 	description: "Summary description for {SHARED_APPLICATION_CONFIGURATION}."
-	author: ""
 	date: "$Date$"
 	revision: "$Revision$"
 
@@ -57,6 +56,6 @@ feature {NONE} -- Implementation
 --		end
 
 note
-	copyright: "2011-2013, Javier Velilla, Jocelyn Fiat and others"
+	copyright: "2011-2015, Javier Velilla, Jocelyn Fiat and others"
 	license: "Eiffel Forum License v2 (see http://www.eiffel.com/licensing/forum.txt)"
 end

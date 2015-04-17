@@ -24,7 +24,12 @@
 				<debug name="ws" enabled="true"/>
 			</option>
 		</library>
-		<cluster name="src" location=".\" recursive="true"/>
+		<cluster name="src" location=".\" recursive="true">
+			<file_rule>
+				<exclude>/ssl$</exclude>
+				<exclude>/no_ssl$</exclude>
+			</file_rule>
+		</cluster>	
 	</target>
 	<target name="echo_websocket_server_mt" extends="common">
 		<root class="APPLICATION" feature="make"/>

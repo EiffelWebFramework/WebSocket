@@ -12,12 +12,12 @@ inherit
 	SSL_NETWORK_STREAM_SOCKET
 
 create
-	make_server_by_address_and_port, make_server_by_port, 
-	make_client_by_address_and_port, make_client_by_port, 
+	make_server_by_address_and_port, make_server_by_port,
+	make_client_by_address_and_port, make_client_by_port,
 	make_from_separate
 
 create {SSL_NETWORK_STREAM_SOCKET}
-	make_from_descriptor_and_address
+	make_from_descriptor_and_address, make_empty
 
 feature {NONE} -- Initialization
 
