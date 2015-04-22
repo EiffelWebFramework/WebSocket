@@ -73,11 +73,13 @@
 				</condition>
 				<cluster name="scoop_no_ssl" location="$|no_ssl\" recursive="true">
 					<condition>
+						<concurrency value="scoop"/>
 						<custom name="httpd_ssl_disabled" value="true"/>
 					</condition>
 				</cluster>
 				<cluster name="scoop_ssl" location="$|ssl\" recursive="true">
 					<condition>
+						<concurrency value="scoop"/>
 						<custom name="httpd_ssl_disabled" excluded_value="true"/>
 					</condition>
 				</cluster>
