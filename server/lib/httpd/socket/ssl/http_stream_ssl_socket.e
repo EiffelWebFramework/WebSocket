@@ -58,7 +58,7 @@ feature {NONE} -- Initialization
 		do
 			create l_ssl_socket.make_from_separate (retrieve_socket (s))
 			l_ssl_socket.set_tls_protocol (tls_protocol (s))
-			create l_context.make_from_ctx (tls_context (s), ssl_structure (s))
+			create l_context.make_from_context_pointer (tls_context (s), ssl_structure (s))
 			l_ssl_socket.set_context (l_context)
 			socket := l_ssl_socket
 		end
@@ -109,7 +109,7 @@ feature
 
 	retrieve_ssl_ctx (s: separate SSL): POINTER
 		do
-			Result := s.ctx_ptr
+			Result := s.context_pointer
 		end
 
 	retrieve_ssl_ptr (s: separate SSL): POINTER
