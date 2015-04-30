@@ -1,6 +1,5 @@
 note
-	description: "Summary description for {CONCURRENT_POOL}."
-	author: ""
+	description: "Represent a pool of objects [REQUEST_HANDLER] "
 	date: "$Date$"
 	revision: "$Revision$"
 

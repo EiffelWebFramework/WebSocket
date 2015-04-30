@@ -1,6 +1,5 @@
 note
 	description: "Summary description for {CONCURRENT_POOL_ITEM}."
-	author: ""
 	date: "$Date$"
 	revision: "$Revision$"
 

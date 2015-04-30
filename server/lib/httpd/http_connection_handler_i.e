@@ -1,6 +1,5 @@
 note
 	description: "Summary description for {HTTP_CONNECTION_HANDLER_I}."
-	author: ""
 	date: "$Date$"
 	revision: "$Revision$"
 

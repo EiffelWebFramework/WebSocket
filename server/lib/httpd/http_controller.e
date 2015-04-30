@@ -1,6 +1,5 @@
 note
 	description: "Summary description for {HTTP_CONTROLLER}."
-	author: ""
 	date: "$Date$"
 	revision: "$Revision$"
 

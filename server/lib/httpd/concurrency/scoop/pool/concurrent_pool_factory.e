@@ -1,6 +1,5 @@
 note
-	description: "Summary description for {CONCURRENT_POOL_FACTORY}."
-	author: ""
+	description: "Factory of Pool objects."
 	date: "$Date$"
 	revision: "$Revision$"
 

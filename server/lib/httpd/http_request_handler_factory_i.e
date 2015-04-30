@@ -1,6 +1,5 @@
 note
 	description: "Summary description for {HTTP_REQUEST_HANDLER_FACTORY_I}."
-	author: ""
 	date: "$Date$"
 	revision: "$Revision$"
 

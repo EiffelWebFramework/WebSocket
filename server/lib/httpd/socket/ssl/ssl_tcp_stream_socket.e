@@ -15,7 +15,7 @@ create
 	make_server_by_address_and_port, make_server_by_port, make_from_separate
 
 create {SSL_NETWORK_STREAM_SOCKET}
-	make_from_descriptor_and_address
+	make_from_descriptor_and_address, make_empty
 
 feature {NONE} -- Initialization
 
@@ -66,10 +66,24 @@ feature -- Status report
 			Result := (retval > 0)
 		end
 
+
 feature {NONE}-- Implementation
 
 
+feature -- SSL Context
 
+	retrieve_context: like context
+			-- Retrieve the current ssl context.
+		do
+			Result := context
+		end
+
+
+	set_context (a_context: like context)
+			-- Set `context' with `a_context'.
+		do
+			context := a_context
+		end
 
 note
 	copyright: "2011-2013, Javier Velilla, Jocelyn Fiat and others"

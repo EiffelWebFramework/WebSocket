@@ -17,7 +17,9 @@ inherit
 			port,
 			is_bound,
 			ready_for_writing,
-			ready_for_reading
+			ready_for_reading,
+			listen,
+			accepted
 		end
 
 create
@@ -49,18 +51,112 @@ feature {NONE} -- Initialization
 			set_certificates (a_crt, a_key)
 		end
 
-	make_from_separate (s: separate HTTP_STREAM_SOCKET)
+	make_from_separate (s: separate HTTP_STREAM_SSL_SOCKET)
 		local
-			l_string: STRING
+			l_ssl_socket: SSL_TCP_STREAM_SOCKET
+			l_context: SSL_CONTEXT
 		do
-			create l_string.make_from_separate (s.socket.generator)
-			if l_string.same_string ("TCP_STREAM_SOCKET") then
-				create {TCP_STREAM_SOCKET} socket.make_from_separate (retrieve_socket (s))
-			elseif attached {SSL_TCP_STREAM_SOCKET} s.socket then
-				create {SSL_TCP_STREAM_SOCKET} socket.make_from_separate (retrieve_socket (s))
-			else
-				create {TCP_STREAM_SOCKET} socket.make_from_separate (retrieve_socket (s))
-					-- maybe a NULL_STREAM_SOCKET should be better.
+			create l_ssl_socket.make_from_separate (retrieve_socket (s))
+			l_ssl_socket.set_tls_protocol (tls_protocol (s))
+			create l_context.make_from_context_pointer (tls_context (s), ssl_structure (s))
+			l_ssl_socket.set_context (l_context)
+			socket := l_ssl_socket
+		end
+
+feature
+
+	listen (a_queue: INTEGER)
+		do
+			if attached {SSL_TCP_STREAM_SOCKET} socket as l_socket then
+				l_socket.listen (a_queue)
+			end
+		end
+
+	tls_context(s: separate HTTP_STREAM_SSL_SOCKET): POINTER
+			-- Get tls context pointer.
+		do
+			if attached {separate SSL_TCP_STREAM_SOCKET} retrieve_ssl_stream_socket(s) as l_ssl_socket then
+				if attached {separate SSL_CONTEXT } retrieve_ssl_context (l_ssl_socket) as l_ssl_context then
+					if attached {separate SSL} retrieve_ssl (l_ssl_context) as l_ssl then
+						Result := retrieve_ssl_ctx (l_ssl)
+					end
+				end
+			end
+		end
+
+	ssl_structure (s: separate HTTP_STREAM_SSL_SOCKET): POINTER
+			-- Get ssl structure pointer.
+		do
+			if attached {separate SSL_TCP_STREAM_SOCKET} retrieve_ssl_stream_socket(s) as l_ssl_socket then
+				if attached {separate SSL_CONTEXT } retrieve_ssl_context (l_ssl_socket) as l_ssl_context then
+					if attached {separate SSL} retrieve_ssl (l_ssl_context) as l_ssl then
+						Result := retrieve_ssl_ptr (l_ssl)
+					end
+				end
+			end
+		end
+
+	retrieve_ssl_context (s: separate SSL_TCP_STREAM_SOCKET): detachable separate SSL_CONTEXT
+			-- Get ssl context.
+		do
+			Result := s.retrieve_context
+		end
+
+	retrieve_ssl (s: separate SSL_CONTEXT): detachable separate SSL
+		do
+			Result := s.last_ssl
+		end
+
+	retrieve_ssl_ctx (s: separate SSL): POINTER
+		do
+			Result := s.context_pointer
+		end
+
+	retrieve_ssl_ptr (s: separate SSL): POINTER
+		do
+			Result := s.ptr
+		end
+
+	tls_protocol(s: separate HTTP_STREAM_SSL_SOCKET): NATURAL_32
+		do
+			if attached {separate SSL_TCP_STREAM_SOCKET} retrieve_ssl_stream_socket(s) as l_ssl_socket then
+				Result := retrieve_tls_protocol (l_ssl_socket)
+			end
+		end
+
+	retrieve_tls_protocol (s: separate SSL_TCP_STREAM_SOCKET): NATURAL_32
+		do
+			Result := s.tls_protocol
+		end
+
+	ssl_crt(s: separate HTTP_STREAM_SSL_SOCKET): detachable separate PATH
+		do
+			if attached {separate SSL_TCP_STREAM_SOCKET} retrieve_ssl_stream_socket(s) as l_ssl_socket then
+				Result := retrieve_ssl_crt (l_ssl_socket)
+			end
+		end
+
+	retrieve_ssl_crt (s: separate SSL_TCP_STREAM_SOCKET): detachable separate PATH
+		do
+			Result := s.certificate_file_path
+		end
+
+	ssl_key(s: separate HTTP_STREAM_SSL_SOCKET): detachable separate PATH
+		do
+			if attached {separate SSL_TCP_STREAM_SOCKET} retrieve_ssl_stream_socket(s) as l_ssl_socket then
+				Result := retrieve_ssl_key (l_ssl_socket)
+			end
+		end
+
+	retrieve_ssl_key (s: separate SSL_TCP_STREAM_SOCKET): detachable separate PATH
+		do
+			Result := s.key_file_path
+		end
+
+	retrieve_ssl_stream_socket (s: separate HTTP_STREAM_SSL_SOCKET): detachable separate SSL_TCP_STREAM_SOCKET
+		do
+			if attached {separate SSL_TCP_STREAM_SOCKET} s.socket as l_ssl_socket then
+				Result := l_ssl_socket
 			end
 		end
 
@@ -71,8 +167,6 @@ feature -- Output
 			if attached socket as l_socket then
 				if attached {SSL_TCP_STREAM_SOCKET} l_socket as l_ssl_socket then
 					l_ssl_socket.send_message (a_msg)
-				elseif attached {TCP_STREAM_SOCKET} socket as l_normal_socket then
-					l_normal_socket.send_message (a_msg)
 				else
 					l_socket.put_string (a_msg)
 				end
@@ -85,8 +179,6 @@ feature -- Status Report
 		do
 			if attached {SSL_TCP_STREAM_SOCKET} socket as l_ssl_socket then
 				Result := l_ssl_socket.port
-			elseif attached {TCP_STREAM_SOCKET} socket then
-				Result := Precursor
 			end
 		end
 
@@ -94,8 +186,6 @@ feature -- Status Report
 		do
 			if attached {SSL_TCP_STREAM_SOCKET} socket as l_ssl_socket then
 				Result := l_ssl_socket.is_bound
-			elseif attached {TCP_STREAM_SOCKET} socket then
-				Result := Precursor
 			end
 		end
 
@@ -103,24 +193,27 @@ feature -- Status Report
 		do
 			if attached {SSL_TCP_STREAM_SOCKET} socket as l_ssl_socket then
 				Result := l_ssl_socket.ready_for_writing
-			elseif attached {TCP_STREAM_SOCKET} socket then
-				Result := Precursor
-
 			end
 		end
 
 	ready_for_reading: BOOLEAN
 		do
-			if attached {TCP_STREAM_SOCKET} socket as l_socket then
-				Result := l_socket.ready_for_reading
-			elseif attached {SSL_TCP_STREAM_SOCKET} socket as l_ssl_socket then
+			if attached {SSL_TCP_STREAM_SOCKET} socket as l_ssl_socket then
 				Result := l_ssl_socket.ready_for_reading
+			end
+		end
+
+	accepted: detachable HTTP_STREAM_SSL_SOCKET
+		do
+			if attached socket.accepted as l_accepted then
+				create Result.make (l_accepted)
 			end
 		end
 
 feature {HTTP_STREAM_SOCKET} -- Implementation
 
 	set_certificates (a_crt: STRING; a_key: STRING)
+			-- Set SSL certificates with `a_crt' and `a_key'.
 		local
 			a_file_name: FILE_NAME
 		do
