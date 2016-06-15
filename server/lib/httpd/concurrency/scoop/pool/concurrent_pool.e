@@ -1,6 +1,5 @@
 note
-	description: "Summary description for {CONCURRENT_POOL}."
-	author: ""
+	description: "Concurrent pool for SCOOP concurrency mode."
 	date: "$Date$"
 	revision: "$Revision$"
 
@@ -8,7 +7,7 @@ class
 	CONCURRENT_POOL [G -> CONCURRENT_POOL_ITEM]
 
 inherit
-	HTTP_DEBUG_FACILITIES
+	HTTPD_DEBUG_FACILITIES
 
 create
 	make
@@ -19,31 +18,38 @@ feature {NONE} -- Initialization
 		do
 			capacity := n
 			create items.make_empty (n)
---			create busy_items.make_filled (False, n)
 			create busy_items.make_empty (n)
 		end
 
 feature -- Access
 
 	count: INTEGER
+			-- Number of concurrent items managed by Current pool.
+
+	capacity: INTEGER
+			-- Maximum number of concurrent items managed by Current pool.
+
+feature -- Status report
 
 	is_full: BOOLEAN
+			-- Pool is full?
 		do
 			Result := count >= capacity
 		end
 
 	is_empty: BOOLEAN
+			-- No concurrent item waiting in current pool.
 		do
 			Result := count = 0
 		end
 
-	capacity: INTEGER
-
 	stop_requested: BOOLEAN
+			-- Current pool received a request to terminate.
 
 feature -- Access
 
 	separate_item (a_factory: separate CONCURRENT_POOL_FACTORY [G]): detachable separate G
+			-- Reused, or new separate item of type {G} created by `a_factory'.
 		require
 			is_not_full: not is_full
 		local
@@ -88,6 +94,7 @@ feature -- Access
 					count := count + 1
 					busy_items [pos] := True
 					Result := l_item
+					a_factory.update_item (l_item)
 				end
 			end
 		end
@@ -95,6 +102,7 @@ feature -- Access
 feature -- Basic operation
 
 	gracefull_stop
+			-- Request the Current pool to terminate.
 		do
 			stop_requested := True
 		end
@@ -102,8 +110,10 @@ feature -- Basic operation
 feature {NONE} -- Internal
 
 	items: SPECIAL [detachable separate G]
+			-- List of concurrent items.
 
 	busy_items: SPECIAL [BOOLEAN]
+			-- Map of items being proceed.
 
 feature {CONCURRENT_POOL_ITEM} -- Change
 
@@ -141,6 +151,7 @@ feature {CONCURRENT_POOL_ITEM} -- Change
 feature -- Change
 
 	set_count (n: INTEGER)
+			-- Set capacity of Current pool to `n'.
 		local
 			g: detachable separate G
 		do
@@ -150,6 +161,7 @@ feature -- Change
 		end
 
 	terminate
+			-- Terminate current pool.
 		local
 			l_items: like items
 		do
@@ -159,16 +171,20 @@ feature -- Change
 
 feature {NONE} -- Implementation
 
---	new_separate_item: separate G
---		deferred
---		end
-
 	register_item (a_item: separate G)
+			-- Adopt `a_item' in current pool.
 		do
 			a_item.set_pool (Current)
 		end
 
 note
-	copyright: "2011-2013, Javier Velilla, Jocelyn Fiat and others"
+	copyright: "2011-2015, Jocelyn Fiat, Javier Velilla, Eiffel Software and others"
 	license: "Eiffel Forum License v2 (see http://www.eiffel.com/licensing/forum.txt)"
+	source: "[
+			Eiffel Software
+			5949 Hollister Ave., Goleta, CA 93117 USA
+			Telephone 805-685-1006, Fax 805-685-6869
+			Website http://www.eiffel.com
+			Customer support http://support.eiffel.com
+		]"
 end

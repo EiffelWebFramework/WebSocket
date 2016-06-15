@@ -1,21 +1,17 @@
 note
-	description: "Factory in charge of creating new concurrent pool item."
+	description: "Implementation of request handler factory for concurrency mode: SCOOP"
 	date: "$Date$"
 	revision: "$Revision$"
 
 deferred class
-	CONCURRENT_POOL_FACTORY [G -> CONCURRENT_POOL_ITEM]
+	HTTPD_REQUEST_HANDLER_FACTORY
 
-feature -- Access
+inherit
+	HTTPD_REQUEST_HANDLER_FACTORY_I
 
-	update_item (a_item: separate G)
-			-- Update `a_item' for optionally purpose.
-		do
-		end
-
-	new_separate_item: separate G
-			-- New separated object of type {G}.
-		deferred
+	CONCURRENT_POOL_FACTORY [HTTPD_REQUEST_HANDLER]
+		rename
+			new_separate_item as new_handler
 		end
 
 note

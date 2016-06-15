@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<system xmlns="http://www.eiffel.com/developers/xml/configuration-1-13-0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.eiffel.com/developers/xml/configuration-1-13-0 http://www.eiffel.com/developers/xml/configuration-1-13-0.xsd" name="httpd" uuid="50FE258D-CC94-4748-9223-55F1129E5FB3" library_target="httpd">
+<system xmlns="http://www.eiffel.com/developers/xml/configuration-1-15-0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.eiffel.com/developers/xml/configuration-1-15-0 http://www.eiffel.com/developers/xml/configuration-1-15-0.xsd" name="httpd" uuid="50FE258D-CC94-4748-9223-55F1129E5FB3" library_target="httpd">
 	<target name="httpd">
 		<root all_classes="true"/>
 		<file_rule>
 			<exclude>/.git$</exclude>
-			<exclude>/EIFGENs$</exclude>
 			<exclude>/.svn$</exclude>
+			<exclude>/EIFGENs$</exclude>
 		</file_rule>
 		<option warning="true" full_class_checking="true" void_safety="none" syntax="standard">
 		</option>
@@ -15,7 +15,7 @@
 		<library name="net" location="$ISE_LIBRARY\library\net\net.ecf"/>
 		<library name="net_ssl" location="$ISE_LIBRARY\unstable\library\network\socket\netssl\net_ssl.ecf">
 			<condition>
-				<custom name="httpd_ssl_disabled" excluded_value="true"/>
+				<custom name="httpd_ssl_enabled" value="true"/>
 			</condition>
 		</library>
 		<library name="thread" location="$ISE_LIBRARY\library\thread\thread.ecf">
@@ -27,38 +27,18 @@
 		<cluster name="httpd_server" location=".\" recursive="true">
 			<file_rule>
 				<exclude>/EIFGENs$</exclude>
-				<exclude>/spec$</exclude>
 				<exclude>/concurrency$</exclude>
-				<exclude>/ssl$</exclude>
-				<exclude>/socket$</exclude>
 				<exclude>/no_ssl$</exclude>
+				<exclude>/ssl$</exclude>
 			</file_rule>
 			<cluster name="no_ssl" location="$|no_ssl\" recursive="true">
 				<condition>
-					<custom name="httpd_ssl_disabled" value="true"/>
+					<custom name="httpd_ssl_enabled" excluded_value="true"/>
 				</condition>
 			</cluster>
 			<cluster name="ssl" location="$|ssl\" recursive="true">
 				<condition>
-					<custom name="httpd_ssl_disabled" excluded_value="true"/>
-				</condition>
-			</cluster>
-			<cluster name="socket" location="$|socket\">
-				<file_rule>
-					<exclude>/tcp_stream_socket.e$</exclude>
-					<condition>
-						<version type="compiler" max="15.2.0.0"/>
-					</condition>
-				</file_rule>
-				<cluster name="socket_sll" location="$|ssl\" recursive="true" hidden="true">
-					<condition>
-						<custom name="httpd_ssl_disabled" excluded_value="true"/>
-					</condition>
-				</cluster>
-			</cluster>
-			<cluster name="spec_before_15_01" location="$|spec\before_15_01\" recursive="true">
-				<condition>
-					<version type="compiler" max="15.2.0.0"/>
+					<custom name="httpd_ssl_enabled" value="true"/>
 				</condition>
 			</cluster>
 			<cluster name="concurrency_none" location="$|concurrency\none\" recursive="true">
