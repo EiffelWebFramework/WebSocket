@@ -7,8 +7,7 @@ class
 	APPLICATION
 
 inherit
-
-	ARGUMENTS
+	SHARED_EXECUTION_ENVIRONMENT
 
 create
 	make
@@ -19,30 +18,14 @@ feature {NONE} -- Initialization
 			-- Run application.
 		local
 			ws_client: EXAMPLE_WS_CLIENT
-			l_env: EXECUTION_ENVIRONMENT
-			l_protocols: LIST[STRING]
 		do
-			create {ARRAYED_LIST [STRING]} l_protocols.make (0)
-			l_protocols.fill (<<"com.kaazing.echo", "example.imaginary.protocol">>)
-			create l_env
 --			create ws_client.make_with_port ("wss://echo.websocket.org", 443, Void)
-			create ws_client.make_with_port ("ws://127.0.0.1", 9001, Void)
+			create ws_client.make_with_port ("ws://echo.websocket.org", 80, Void)
+--			create ws_client.make_with_port ("ws://127.0.0.1", 9090, Void)
 			ws_client.launch
-			run
-		end
+			ws_client.join_all
 
-	run
-			-- Start the server
-		local
-			l_thread: EXECUTION_ENVIRONMENT
-		do
-			create l_thread
-			from
-			until
-				False
-			loop
-				l_thread.sleep (1_000_000)
-			end
+			execution_environment.sleep (5_000_000)
 		end
 
 end

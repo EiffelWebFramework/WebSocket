@@ -31,7 +31,7 @@ inherit
 
 feature -- Initialization
 
-	initialize (a_uri: READABLE_STRING_GENERAL; a_protocols: detachable LIST [STRING])
+	initialize (a_uri: READABLE_STRING_GENERAL; a_protocols: detachable ITERABLE [STRING])
 			-- Initialize websocket client
 		require
 			is_valid_uri: is_valid_uri (a_uri)
@@ -46,7 +46,7 @@ feature -- Initialization
 			create server_handshake.make
 		end
 
-	initialize_with_port (a_uri: READABLE_STRING_GENERAL; a_port: INTEGER; a_protocols: detachable LIST [STRING])
+	initialize_with_port (a_uri: READABLE_STRING_GENERAL; a_port: INTEGER; a_protocols: detachable ITERABLE [STRING])
 			-- Initialize websocket client
 		require
 			is_valid_uri: is_valid_uri (a_uri)
@@ -77,14 +77,14 @@ feature -- Initialization
 
 feature -- Factory
 
-	new_socket (a_port: INTEGER; a_host: STRING): HTTP_STREAM_SOCKET
+	new_socket (a_port: INTEGER; a_host: STRING): HTTPD_STREAM_SOCKET
 			-- New socket for port `a_port' on host `a_host'.
 		deferred
 		end
 
 feature -- Access
 
-	socket: HTTP_STREAM_SOCKET
+	socket: HTTPD_STREAM_SOCKET
 			-- Socket
 
 	has_error: BOOLEAN
@@ -92,7 +92,7 @@ feature -- Access
 			Result := implementation.has_error
 		end
 
-	is_server_hanshake_accpeted: BOOLEAN
+	is_server_hanshake_accepted: BOOLEAN
 
 	is_valid_uri (a_uri: READABLE_STRING_GENERAL): BOOLEAN
 			-- Is `a_uri' a valid URI?
@@ -186,7 +186,7 @@ feature -- Execute
 			end
 			send_handshake
 			receive_handshake
-			if is_server_hanshake_accpeted then
+			if is_server_hanshake_accepted then
 				ready_state.set_state ({WEB_SOCKET_READY_STATE}.open)
 				on_websocket_open ("Open Connection")
 				from
@@ -297,7 +297,7 @@ feature {NONE} -- Implementation
 				l_upgrade_key.is_case_insensitive_equal ("websocket") and then attached server_handshake.request_header_map.item ("Connection") as l_connection_key and then -- Connection header must be present with value Upgrade
 				l_connection_key.has_substring ("Upgrade")
 			then
-				is_server_hanshake_accpeted := True
+				is_server_hanshake_accepted := True
 				if attached server_handshake.request_header_map.item ("Sec-WebSocet-Protocol") as l_protocol then
 					set_protocol (l_protocol)
 				end

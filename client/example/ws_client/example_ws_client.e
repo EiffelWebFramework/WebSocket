@@ -8,7 +8,6 @@ class
 	EXAMPLE_WS_CLIENT
 
 inherit
-
 	WEB_SOCKET_CLIENT
 
 create
@@ -46,8 +45,10 @@ feature -- Event
 			l_message: STRING
 		do
 			if count <= 10 then
+				print ("%NMessage is %"" + a_message + "%".%N")
 				print ("%NCount:" + count.out)
 				create l_message.make_empty
+				l_message.append ("mesg#" + count.out)
 				send (l_message)
 				count := count + 1
 			else -- Send close initiated by the client
@@ -69,7 +70,7 @@ feature -- Event
 		do
 		end
 
-	connection: HTTP_STREAM_SOCKET
+	connection: like socket
 		do
 			Result := socket
 		end

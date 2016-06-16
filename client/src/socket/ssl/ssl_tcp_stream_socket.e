@@ -1,6 +1,5 @@
 note
-	description: "Summary description for {SSL_TCP_STREAM_SOCKET}."
-	author: ""
+	description: "SSL tcp stream socket."
 	date: "$Date$"
 	revision: "$Revision$"
 
@@ -12,20 +11,14 @@ inherit
 	SSL_NETWORK_STREAM_SOCKET
 
 create
-	make_server_by_address_and_port, make_server_by_port, 
+	make_server_by_address_and_port, make_server_by_port,
 	make_client_by_address_and_port, make_client_by_port, 
-	make_from_separate
+	make_empty
 
 create {SSL_NETWORK_STREAM_SOCKET}
 	make_from_descriptor_and_address
 
 feature {NONE} -- Initialization
-
-
-	make_from_separate (a_descriptor: INTEGER)
-		do
-			create_from_descriptor (a_descriptor)
-		end
 
 	make_server_by_address_and_port (an_address: INET_ADDRESS; a_port: INTEGER)
 			-- Create server socket on `an_address' and `a_port'.

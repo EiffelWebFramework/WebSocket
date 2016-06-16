@@ -55,7 +55,7 @@ feature -- Handshake
 
 feature -- TCP connection
 
-	connection: HTTP_STREAM_SOCKET
+	connection: HTTPD_STREAM_SOCKET
 		deferred
 		end
 end

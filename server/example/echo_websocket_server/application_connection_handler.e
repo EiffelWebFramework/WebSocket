@@ -1,6 +1,8 @@
 note
-	description: "Summary description for {HTTP_REQUEST_HANDLER}."
-	author: ""
+	description: "[
+			Implementation of {WEB_SOCKET_REQUEST_HANDLER}
+			specific for this application.
+		]"
 	date: "$Date$"
 	revision: "$Revision$"
 
@@ -15,7 +17,7 @@ create
 
 feature -- Request processing
 
-	process_http_request (a_socket: HTTP_STREAM_SOCKET)
+	process_http_request (a_socket: HTTPD_STREAM_SOCKET)
 			-- Process request ...
 		local
 			s: STRING
@@ -36,31 +38,30 @@ feature -- Request processing
 			a_socket.put_string (s)
 		end
 
-	on_open (a_socket: HTTP_STREAM_SOCKET)
+	on_open (a_socket: HTTPD_STREAM_SOCKET)
 		do
 			if is_verbose then
-				log ("Connecting")
+				log ("Connecting", {HTTPD_LOGGER_CONSTANTS}.debug_level)
 			end
 		end
 
-	on_binary (conn: HTTP_STREAM_SOCKET; a_message: READABLE_STRING_8)
+	on_binary (conn: HTTPD_STREAM_SOCKET; a_message: READABLE_STRING_8)
 		do
 			send (conn, Binary_frame, a_message)
 		end
 
-	on_text (conn: HTTP_STREAM_SOCKET; a_message: READABLE_STRING_8)
+	on_text (conn: HTTPD_STREAM_SOCKET; a_message: READABLE_STRING_8)
 		do
 			send (conn, Text_frame, a_message)
 		end
 
-	on_close (conn: detachable HTTP_STREAM_SOCKET)
+	on_close (conn: detachable HTTPD_STREAM_SOCKET)
 			-- Called after the WebSocket connection is closed.
 		do
 			if is_verbose then
-				log ("Connection closed")
+				log ("Connection closed", {HTTPD_LOGGER_CONSTANTS}.debug_level)
 			end
 		end
-
 
 	websocket_app_html (a_port: INTEGER): STRING
 		do
@@ -161,6 +162,6 @@ body {font-family:Arial, Helvetica, sans-serif;}
 		end
 
 note
-	copyright: "2011-2015, Javier Velilla, Jocelyn Fiat and others"
+	copyright: "2011-2016, Javier Velilla, Jocelyn Fiat and others"
 	license: "Eiffel Forum License v2 (see http://www.eiffel.com/licensing/forum.txt)"
 end

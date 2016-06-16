@@ -18,11 +18,12 @@
 		<library name="net" location="$ISE_LIBRARY\library\net\net-safe.ecf"/>
 		<library name="net_ssl" location="$ISE_LIBRARY\unstable\library\network\socket\netssl\net_ssl-safe.ecf">
 			<condition>
-				<custom name="client_ssl_disabled" excluded_value="true"/>
+				<custom name="net_ssl_enabled" value="true"/>
 			</condition>
 		</library>
 		<library name="thread" location="$ISE_LIBRARY\library\thread\thread-safe.ecf"/>
 		<library name="uri" location="$ISE_LIBRARY\library\text\uri\uri-safe.ecf"/>
+		<library name="lib_http_network" location="..\server\lib\httpd\http_network-safe.ecf"/>
 		<cluster name="protocol" location="..\protocol\" recursive="true"/>
 		<cluster name="web_socket_client" location=".\src\" recursive="true">
 			<file_rule>
@@ -33,30 +34,12 @@
 			</file_rule>
 			<cluster name="ssl" location="$|ssl\" recursive="true">
 				<condition>
-					<custom name="client_ssl_disabled" excluded_value="true"/>
+					<custom name="net_ssl_enabled" value="true"/>
 				</condition>
 			</cluster>
 			<cluster name="no_ssl" location="$|no_ssl\" recursive="true">
 				<condition>
-					<custom name="client_ssl_disabled" value="true"/>
-				</condition>
-			</cluster>
-			<cluster name="socket" location="$|socket\">
-				<file_rule>
-					<exclude>/tcp_stream_socket.e$</exclude>
-					<condition>
-						<version type="compiler" max="15.2.0.0"/>
-					</condition>
-				</file_rule>
-				<cluster name="socket_ssl" location="$|ssl\" recursive="true" hidden="true">
-					<condition>
-						<custom name="client_ssl_disabled" excluded_value="true"/>
-					</condition>
-				</cluster>
-			</cluster>
-			<cluster name="spec_before_15_01" location="$|spec\before_15_01\" recursive="true">
-				<condition>
-					<version type="compiler" max="15.2.0.0"/>
+					<custom name="net_ssl_enabled" excluded_value="true"/>
 				</condition>
 			</cluster>
 		</cluster>

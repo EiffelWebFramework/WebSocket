@@ -16,7 +16,7 @@ inherit
 
 feature -- Web Socket Interface
 
-	on_event (conn: HTTP_STREAM_SOCKET; a_message: detachable READABLE_STRING_8; a_opcode: INTEGER)
+	on_event (conn: HTTPD_STREAM_SOCKET; a_message: detachable READABLE_STRING_8; a_opcode: INTEGER)
 			-- Called when a frame from the client has been receive
 		require
 			conn_attached: conn /= Void
@@ -48,7 +48,7 @@ feature -- Web Socket Interface
 			end
 		end
 
-	on_open (conn: HTTP_STREAM_SOCKET)
+	on_open (conn: HTTPD_STREAM_SOCKET)
 			-- Called after handshake, indicates that a complete WebSocket connection has been established.
 		require
 			conn_attached: conn /= Void
@@ -56,14 +56,14 @@ feature -- Web Socket Interface
 		deferred
 		end
 
-	on_binary (conn: HTTP_STREAM_SOCKET; a_message: READABLE_STRING_8)
+	on_binary (conn: HTTPD_STREAM_SOCKET; a_message: READABLE_STRING_8)
 		require
 			conn_attached: conn /= Void
 			conn_valid: conn.is_open_read and then conn.is_open_write
 		deferred
 		end
 
-	on_pong (conn: HTTP_STREAM_SOCKET; a_message: READABLE_STRING_8)
+	on_pong (conn: HTTPD_STREAM_SOCKET; a_message: READABLE_STRING_8)
 		require
 			conn_attached: conn /= Void
 			conn_valid: conn.is_open_read and then conn.is_open_write
@@ -73,7 +73,7 @@ feature -- Web Socket Interface
 				-- FIXME: provide better explanation			
 		end
 
-	on_ping (conn: HTTP_STREAM_SOCKET; a_message: READABLE_STRING_8)
+	on_ping (conn: HTTPD_STREAM_SOCKET; a_message: READABLE_STRING_8)
 		require
 			conn_attached: conn /= Void
 			conn_valid: conn.is_open_read and then conn.is_open_write
@@ -81,14 +81,14 @@ feature -- Web Socket Interface
 			send (conn, Pong_frame, a_message)
 		end
 
-	on_text (conn: HTTP_STREAM_SOCKET; a_message: READABLE_STRING_8)
+	on_text (conn: HTTPD_STREAM_SOCKET; a_message: READABLE_STRING_8)
 		require
 			conn_attached: conn /= Void
 			conn_valid: conn.is_open_read and then conn.is_open_write
 		deferred
 		end
 
-	on_unsupported (conn: HTTP_STREAM_SOCKET; a_message: READABLE_STRING_8; a_opcode: INTEGER)
+	on_unsupported (conn: HTTPD_STREAM_SOCKET; a_message: READABLE_STRING_8; a_opcode: INTEGER)
 		require
 			conn_attached: conn /= Void
 			conn_valid: conn.is_open_read and then conn.is_open_write
@@ -96,7 +96,7 @@ feature -- Web Socket Interface
 				-- do nothing
 		end
 
-	on_connection_close (conn: HTTP_STREAM_SOCKET; a_message: detachable READABLE_STRING_8)
+	on_connection_close (conn: HTTPD_STREAM_SOCKET; a_message: detachable READABLE_STRING_8)
 		require
 			conn_attached: conn /= Void
 			conn_valid: conn.is_open_read and then conn.is_open_write
@@ -104,14 +104,14 @@ feature -- Web Socket Interface
 			send (conn, Connection_close_frame, "")
 		end
 
-	on_close (conn: detachable HTTP_STREAM_SOCKET)
+	on_close (conn: detachable HTTPD_STREAM_SOCKET)
 			-- Called after the WebSocket connection is closed.
 		deferred
 		end
 
 feature {NONE} -- Implementation
 
-	send (conn: HTTP_STREAM_SOCKET; a_opcode:INTEGER; a_message: READABLE_STRING_8)
+	send (conn: HTTPD_STREAM_SOCKET; a_opcode:INTEGER; a_message: READABLE_STRING_8)
 		local
 			i: INTEGER
 			l_chunk_size: INTEGER

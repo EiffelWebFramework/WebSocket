@@ -10,9 +10,12 @@ class
 	HTTP_STREAM_SOCKET
 
 create
-	make_server_by_address_and_port, make_server_by_port,
-	make_client_by_address_and_port, make_client_by_port,
-	make_from_separate
+	make_server_by_address_and_port,
+	make_server_by_port,
+	make_client_by_address_and_port,
+	make_client_by_port,
+	make_from_separate,
+	make_empty
 
 create {HTTP_STREAM_SOCKET}
 	make
@@ -40,48 +43,55 @@ feature {NONE} -- Initialization
 		end
 
 	make_from_separate (s: separate HTTP_STREAM_SOCKET)
+		require
+			descriptor_available: s.descriptor_available
 		do
-			create {TCP_STREAM_SOCKET} socket.make_from_separate (retrieve_socket (s))
+			create {TCP_STREAM_SOCKET} socket.make_from_separate (s.socket)
 		end
 
-	retrieve_socket (s: separate HTTP_STREAM_SOCKET): INTEGER
+	make_empty
+		do
+			create {TCP_STREAM_SOCKET} socket.make_empty
+		end
+
+	retrieve_socket (s: HTTP_STREAM_SOCKET): INTEGER
 		do
 			Result := s.socket.descriptor
 		end
 
-feature -- Basic commands
+feature -- Change
 
-	close
-			-- Close socket for all context.
+	set_timeout (n: INTEGER)
 		do
-			socket.close
+			if attached {NETWORK_STREAM_SOCKET} socket as l_socket then
+				l_socket.set_timeout (n)
+			end
 		end
 
-	connect
-			-- Connect socket to peer address.
+	set_connect_timeout (n: INTEGER)
 		do
-			socket.connect
+			if attached {NETWORK_STREAM_SOCKET} socket as l_socket then
+				l_socket.set_connect_timeout (n)
+			end
+		end
+
+	set_accept_timeout (n: INTEGER)
+		do
+			if attached {NETWORK_STREAM_SOCKET} socket as l_socket then
+				l_socket.set_accept_timeout (n)
+			end
 		end
 
 feature -- Access
 
-	is_connected: BOOLEAN
-			-- Is socket connected?
-		do
-			if attached {TCP_STREAM_SOCKET} socket as l_stream then
-				Result := l_stream.is_connected
-			end
-		end
-
-	exists: BOOLEAN
-			-- Does socket exist?
-		do
-			Result := socket.exists
-		end
-
 	last_string: STRING
 		do
 			Result := socket.last_string
+		end
+
+	last_character: CHARACTER
+		do
+			Result := socket.last_character
 		end
 
 	peer_address: detachable NETWORK_SOCKET_ADDRESS
@@ -99,9 +109,19 @@ feature -- Input
 			socket.read_line_thread_aware
 		end
 
+	read_stream_thread_aware (nb: INTEGER)
+		do
+			socket.read_stream_thread_aware (nb)
+		end
+
 	read_stream (nb: INTEGER)
 		do
 			socket.read_stream (nb)
+		end
+
+	read_character
+		do
+			socket.read_character
 		end
 
 	bytes_read: INTEGER
@@ -111,21 +131,38 @@ feature -- Input
 
 feature -- Output
 
+	send_message (a_msg: STRING)
+		do
+			put_string (a_msg)
+		end
+
+	put_readable_string_8 (s: READABLE_STRING_8)
+			-- Write readable string `s' to socket.
+		do
+			if attached {TCP_STREAM_SOCKET} socket as l_tcp_stream_socket then
+				l_tcp_stream_socket.put_readable_string_8 (s)
+			else
+				put_string (s)
+			end
+		end
+
 	put_string (s: STRING)
 		do
 			socket.put_string (s)
 		end
 
-	send_message (a_msg: STRING)
+	put_character (c: CHARACTER)
 		do
-			if attached {TCP_STREAM_SOCKET} socket as l_socket then
-				l_socket.send_message (a_msg)
-			else
-				socket.put_string (a_msg)
-			end
+			socket.put_character (c)
 		end
 
 feature -- Status Report
+
+	descriptor_available: BOOLEAN
+			-- Is descriptor available?
+		do
+			Result := socket.descriptor_available
+		end
 
 	descriptor: INTEGER
 		do
@@ -139,6 +176,11 @@ feature -- Status Report
 			end
 		end
 
+	exists: BOOLEAN
+		do
+			Result := socket.exists
+		end
+
 	is_blocking: BOOLEAN
 		do
 			Result := socket.is_blocking
@@ -148,6 +190,20 @@ feature -- Status Report
 		do
 			if attached {TCP_STREAM_SOCKET} socket as l_socket then
 				Result := l_socket.is_bound
+			end
+		end
+
+	is_connected: BOOLEAN
+		do
+			if attached {TCP_STREAM_SOCKET} socket as l_socket then
+				Result := l_socket.is_connected
+			end
+		end
+
+	is_created: BOOLEAN
+		do
+			if attached {NETWORK_SOCKET} socket as l_socket then
+				Result := l_socket.is_created
 			end
 		end
 
@@ -190,14 +246,34 @@ feature -- Status Report
 
 	listen (a_queue: INTEGER)
 		do
-			if attached {TCP_STREAM_SOCKET} socket as l_socket then
-				l_socket.listen (a_queue)
-			end
+			socket.listen (a_queue)
+		end
+
+	connect
+		do
+			socket.connect
+		end
+
+	close
+		do
+			socket.close
 		end
 
 	accept
 		do
 			socket.accept
+		end
+
+	accept_to (other: separate HTTP_STREAM_SOCKET)
+			-- Accept a new connection on listen socket.
+			-- Socket of accepted connection is available in `other'.
+		do
+			if
+				attached {NETWORK_STREAM_SOCKET} socket as l_socket and then
+				attached {separate NETWORK_STREAM_SOCKET} other.socket as l_other_socket
+			then
+				l_socket.accept_to (l_other_socket)
+			end
 		end
 
 	set_blocking
@@ -210,6 +286,11 @@ feature -- Status Report
 			socket.set_non_blocking
 		end
 
+	readable: BOOLEAN
+		do
+			Result := socket.readable
+		end
+
 	ready_for_reading: BOOLEAN
 		do
 			if attached {TCP_STREAM_SOCKET} socket as l_socket then
@@ -217,9 +298,16 @@ feature -- Status Report
 			end
 		end
 
+	try_ready_for_reading: BOOLEAN
+		do
+			if attached {TCP_STREAM_SOCKET} socket as l_socket then
+				Result := l_socket.try_ready_for_reading
+			end
+		end
+
 	accepted: detachable HTTP_STREAM_SOCKET
 		do
-			if attached socket.accepted as l_accepted then
+			if attached {NETWORK_STREAM_SOCKET} socket.accepted as l_accepted then
 				create Result.make (l_accepted)
 			end
 		end
@@ -233,4 +321,22 @@ feature {HTTP_STREAM_SOCKET} -- Implementation
 
 	socket: STREAM_SOCKET
 
+	network_stream_socket: detachable NETWORK_STREAM_SOCKET
+		do
+			if attached {NETWORK_STREAM_SOCKET} socket as s then
+				Result := s
+			end
+		end
+
+;note
+	copyright: "2011-2015, Jocelyn Fiat, Javier Velilla, Eiffel Software and others"
+	license: "Eiffel Forum License v2 (see http://www.eiffel.com/licensing/forum.txt)"
+	source: "[
+			Eiffel Software
+			5949 Hollister Ave., Goleta, CA 93117 USA
+			Telephone 805-685-1006, Fax 805-685-6869
+			Website http://www.eiffel.com
+			Customer support http://support.eiffel.com
+		]"
 end
+

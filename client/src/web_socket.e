@@ -82,13 +82,17 @@ feature -- Change Element
 			protocol_set: protocol = a_protocol
 		end
 
-	set_protocols (a_protocols: detachable LIST [STRING])
+	set_protocols (a_protocols: detachable ITERABLE [STRING])
 		local
 			l_protocols: LIST [STRING]
 		do
-			if attached a_protocols as ll_protocols then
+			if a_protocols /= Void then
 				create {ARRAYED_LIST [STRING]} l_protocols.make (0)
-				l_protocols.append (ll_protocols)
+				across
+					a_protocols as ic
+				loop
+					l_protocols.force (ic.item)
+				end
 				protocols := l_protocols
 			end
 		end

@@ -1,18 +1,17 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<system xmlns="http://www.eiffel.com/developers/xml/configuration-1-13-0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.eiffel.com/developers/xml/configuration-1-13-0 http://www.eiffel.com/developers/xml/configuration-1-13-0.xsd" name="echo_websocket_server" uuid="B1D3254D-A58E-4259-9796-8A2843A511A9">
+<system xmlns="http://www.eiffel.com/developers/xml/configuration-1-15-0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.eiffel.com/developers/xml/configuration-1-15-0 http://www.eiffel.com/developers/xml/configuration-1-15-0.xsd" name="echo_websocket_server" uuid="B1D3254D-A58E-4259-9796-8A2843A511A9">
 	<target name="common">
 		<file_rule>
 			<exclude>/.git$</exclude>
-			<exclude>/EIFGENs$</exclude>
-			<exclude>/CVS$</exclude>
 			<exclude>/.svn$</exclude>
+			<exclude>/CVS$</exclude>
+			<exclude>/EIFGENs$</exclude>
 		</file_rule>
-		<option debug="true" warning="true" full_class_checking="false" is_attached_by_default="true" void_safety="all" syntax="transitional">
+		<option debug="true" warning="true" full_class_checking="false" is_attached_by_default="true" is_obsolete_routine_type="true" void_safety="all" syntax="transitional">
 			<debug name="ws" enabled="true"/>
 			<assertions precondition="true" postcondition="true" check="true" invariant="true" loop="true" supplier_precondition="true"/>
 		</option>
-
-
+		<setting name="console_application" value="true"/>
 		<library name="base" location="$ISE_LIBRARY\library\base\base-safe.ecf">
 			<option>
 				<assertions precondition="true"/>
@@ -27,18 +26,19 @@
 		<cluster name="src" location=".\" recursive="true"/>
 	</target>
 	<target name="echo_websocket_server_mt" extends="common">
-		<root class="APPLICATION" feature="make"/>
+		<root class="APPLICATION" feature="make_and_launch"/>
 		<setting name="concurrency" value="thread"/>
+		<variable name="httpd_ssl_enabled" value="true"/>
 	</target>
 	<target name="echo_websocket_server_mt_no_ssl" extends="echo_websocket_server_mt">
-		<variable name="httpd_ssl_disabled" value="true"/>
+		<variable name="httpd_ssl_enabled" value="false"/>
 	</target>
-
 	<target name="echo_websocket_server_scoop" extends="common">
-		<root class="APPLICATION" feature="make"/>
+		<root class="APPLICATION" feature="make_and_launch"/>
 		<setting name="concurrency" value="scoop"/>
+		<variable name="httpd_ssl_enabled" value="true"/>
 	</target>
 	<target name="echo_websocket_server_scoop_no_ssl" extends="echo_websocket_server_scoop">
-		<variable name="httpd_ssl_disabled" value="true"/>
+		<variable name="httpd_ssl_enabled" value="false"/>
 	</target>
 </system>

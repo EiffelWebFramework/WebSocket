@@ -14,12 +14,12 @@ inherit
 
 feature -- Initialization
 
-	new_socket (a_port: INTEGER; a_host: STRING): HTTP_STREAM_SOCKET
+	new_socket (a_port: INTEGER; a_host: STRING): HTTPD_STREAM_SOCKET
 		do
 			if is_tunneled then
-				create {HTTP_STREAM_SSL_SOCKET} Result.make_ssl_client_by_port (a_port, a_host, {SSL_PROTOCOL}.ssl_23)
+				create {HTTPD_STREAM_SSL_SOCKET} Result.make_ssl_client_by_port (a_port, a_host, {SSL_PROTOCOL}.ssl_23, "FIXME", "FIXME")
 			else
-				create {HTTP_STREAM_SOCKET} Result.make_client_by_port (a_port, a_host)
+				create {HTTPD_STREAM_SOCKET} Result.make_client_by_port (a_port, a_host)
 			end
 		end
 

@@ -12,10 +12,12 @@ inherit
 
 	SHARED_BASE64
 
-	HTTP_REQUEST_HANDLER
+	HTTPD_REQUEST_HANDLER
 		redefine
 			reset, release
 		end
+
+	HTTPD_LOGGER_CONSTANTS
 
 feature {NONE} -- Initialization
 
@@ -26,11 +28,11 @@ feature {NONE} -- Initialization
 			is_verbose := True -- HACK: for dev time, always log
 		end
 
-feature {HTTP_CONNECTION_HANDLER_I} -- Basic operation		
+feature {HTTPD_CONNECTION_HANDLER_I} -- Basic operation		
 
 	release
 		do
-			Precursor {HTTP_REQUEST_HANDLER}
+			Precursor {HTTPD_REQUEST_HANDLER}
 			on_close (client_socket)
 		end
 
@@ -41,7 +43,7 @@ feature -- Access
 
 feature -- Request processing
 
-	process_request (a_socket: HTTP_STREAM_SOCKET)
+	process_request (a_socket: HTTPD_STREAM_SOCKET)
 			-- Process request ...
 		do
 				-- Set socket mode as "blocking", this simplifies the code
@@ -64,7 +66,7 @@ feature -- Request processing
 
 feature -- Request processing
 
-	process_http_request (a_socket: HTTP_STREAM_SOCKET)
+	process_http_request (a_socket: HTTPD_STREAM_SOCKET)
 			-- Process request ...
 		require
 			no_error: not has_error
@@ -76,7 +78,7 @@ feature -- Request processing
 		deferred
 		end
 
-	process_ws_request (a_socket: HTTP_STREAM_SOCKET)
+	process_ws_request (a_socket: HTTPD_STREAM_SOCKET)
 		require
 			is_websocket: is_websocket
 		local
@@ -158,7 +160,7 @@ feature -- Request processing
 					end
 				else
 					if is_verbose then
-						log (generator + ".WAITING WS_REQUEST_HANDLER.process_request {" + a_socket.descriptor.out + "}")
+						log (generator + ".WAITING WS_REQUEST_HANDLER.process_request {" + a_socket.descriptor.out + "}", debug_level)
 					end
 				end
 			end
@@ -166,7 +168,7 @@ feature -- Request processing
 
 feature -- WebSockets
 
-	next_frame (a_socket: HTTP_STREAM_SOCKET): detachable WEB_SOCKET_FRAME
+	next_frame (a_socket: HTTPD_STREAM_SOCKET): detachable WEB_SOCKET_FRAME
 			-- TODO Binary messages
 			-- Handle error responses in a better way.
 			-- IDEA:
@@ -276,7 +278,7 @@ feature -- WebSockets
 						if Result.is_valid then
 								--| valid frame/fragment
 							if is_verbose then
-								log ("+ frame " + opcode_name (l_opcode) + " (fin=" + l_fin.out + ")")
+								log ("+ frame " + opcode_name (l_opcode) + " (fin=" + l_fin.out + ")", debug_level)
 							end
 
 								-- rsv validation
@@ -294,7 +296,7 @@ feature -- WebSockets
 							end
 						else
 							if is_verbose then
-								log ("+ INVALID frame " + opcode_name (l_opcode) + " (fin=" + l_fin.out + ")")
+								log ("+ INVALID frame " + opcode_name (l_opcode) + " (fin=" + l_fin.out + ")", debug_level)
 							end
 						end
 
@@ -424,7 +426,7 @@ feature -- WebSockets
 												end
 											end
 											if is_verbose then
-												log ("  Received " + l_fetch_count.out + " out of " + l_len.out + " bytes <===============")
+												log ("  Received " + l_fetch_count.out + " out of " + l_len.out + " bytes <===============", debug_level)
 											end
 
 											debug ("ws")
@@ -457,7 +459,7 @@ feature -- WebSockets
 					if Result /= Void then
 						if attached Result.error as err then
 							if is_verbose then
-								log ("  !Invalid frame: " +  err.string)
+								log ("  !Invalid frame: " +  err.string, debug_level)
 							end
 						end
 						if Result.is_injected_control then
@@ -498,7 +500,7 @@ feature -- WebSockets
 			retry
 		end
 
-	open_ws_handshake (a_socket: HTTP_STREAM_SOCKET)
+	open_ws_handshake (a_socket: HTTPD_STREAM_SOCKET)
 			-- The opening handshake is intended to be compatible with HTTP-based
 			-- server-side software and intermediaries, so that a single port can be
 			-- used by both HTTP clients alking to that server and WebSocket
@@ -522,8 +524,8 @@ feature -- WebSockets
 
 				-- TODO extract to a validator handshake or something like that.
 			if is_verbose then
-				log ("%NReceive <====================")
-				log (request_header)
+				log ("%NReceive <====================", debug_level)
+				log (request_header, debug_level)
 			end
 			is_websocket := False
 			if
@@ -540,7 +542,7 @@ feature -- WebSockets
 					attached request_header_map.item ("Host") -- Host header must be present
 				then
 					if is_verbose then
-						log ("key " + l_ws_key)
+						log ("key " + l_ws_key, debug_level)
 					end
 						-- Sending the server's opening handshake
 					l_ws_key.append_string (Magic_guid)
@@ -556,14 +558,14 @@ feature -- WebSockets
 						-- end of header empty line
 					l_handshake.append_string ("%R%N")
 					if is_verbose then
-						log ("%N================> Send")
-						log (l_handshake)
+						log ("%N================> Send", debug_level)
+						log (l_handshake, debug_level)
 					end
 					a_socket.put_string (l_handshake)
 				else
 					has_error := True
 					if is_verbose then
-						log ("Error (opening_handshake)!!!")
+						log ("Error (opening_handshake)!!!", debug_level)
 					end
 						-- If we cannot complete the handshake, then the server MUST stop processing the client's handshake and return an HTTP response with an
 						-- appropriate error code (such as 400 Bad Request).
@@ -576,7 +578,7 @@ feature -- WebSockets
 
 feature {NONE} -- Socket helpers
 
-	next_bytes (a_socket: HTTP_STREAM_SOCKET; nb: INTEGER): STRING
+	next_bytes (a_socket: HTTPD_STREAM_SOCKET; nb: INTEGER): STRING
 		require
 			nb > 0
 		local
